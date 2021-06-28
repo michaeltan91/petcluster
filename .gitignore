@@ -1,0 +1,7 @@
+*.txt
+*.egg-info
+*.egg
+*.pyc
+*.json
+build
+dist
