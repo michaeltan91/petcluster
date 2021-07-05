@@ -14,6 +14,10 @@ class Cluster(object):
 
     def create_static_table(self):
         """"Create a static table from Aspen Models"""
+        # Creates a static table from all the aspen plus backup files in the current directory
+        # the static table is generated as a Pandas DataFrame
+        # For each process, the process ID, process name, incoming stream name and flowrate, outgoing stream name and flowrate is stored. 
+
         files = [f for f in os.listdir('.') if os.path.isfile(f)]
         sep = ' '
 
@@ -32,18 +36,21 @@ class Cluster(object):
                 model.run(report_error = False)
                 
                 for stream in model.material_streams:
+                    # Load and store the feed streams
                     if stream.type is "Feed":
                         df.loc[row, 'Process ID'] = uid
                         df.loc[row, 'Process Name'] = process_name
                         df.loc[row, 'Stream in'] = stream.name
                         df.loc[row, 'Amount in'] = stream.massflow
                         row += 1
+                    # Load and store the product streams
                     elif stream.type is "Product":
                         df.loc[prod_row, 'Process ID'] = uid
                         df.loc[prod_row, 'Process Name'] = process_name
                         df.loc[prod_row, 'Stream out'] = stream.name
                         df.loc[prod_row, 'Amount out'] = stream.massflow
                         prod_row += 1
+                        # Load and store the waste streams
                     elif stream.type is "Waste":
                         df.loc[prod_row, 'Process ID'] = uid
                         df.loc[prod_row, 'Process Name'] = process_name
@@ -57,8 +64,10 @@ class Cluster(object):
                     row += 1
                     prod_row = row
                 print(uid)
+
+                # Closes the Aspen model
                 model.close()
-        
+        # 
         self.table = df
 
 
@@ -68,7 +77,10 @@ class Cluster(object):
 
     
     def add_process_static_table(self, aspen_file):
-        
+        '''Add a process to the static table'''
+        # Add a process to the static table in the current memory
+        # e.g. when current table is mapped and a new process has to be added and mapped
+
         df = self.table
         sep = ' '
         row = len(df.index)
@@ -109,7 +121,7 @@ class Cluster(object):
 
 
     def load_cluster(self):
-
+        '''Load the mass and energy balances of every Aspen Plus backup file in the current directory'''
         files = [f for f in os.listdir('.') if os.path.isfile(f)]
         sep = ' '
         for f in files:

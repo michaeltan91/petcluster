@@ -96,13 +96,17 @@ class Process(object):
 
 
     def add_manual_steam_gen(self, steam_type, block, heatstream, stream):
+        '''Add a manual steam generation utility'''
         hs = self.model.heat_streams[heatstream]
         ms =self.model.streams[stream]
         
+        # 
         steam = Steam_Gen_Manual(block, hs, ms )
         try: 
             self.model.utilities[steam_type].blocks[block] = steam
             self.model.steam_gen[steam_type].blocks[block] = steam
+        
+        # When the requested utility is not yet defined
         except KeyError:
             temp = Manual_Utility(())
             self.model.utilities[steam_type] = temp 
@@ -113,6 +117,7 @@ class Process(object):
 
 
     def add_manual_natural_gas(self, block, ng_stream_id):
+        '''Add a manual natural gas utility'''
         ng_stream = self.model.streams[ng_stream_id]
 
         natural_gas = Natural_Gas_Manual(block, ng_stream)
