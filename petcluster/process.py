@@ -161,9 +161,9 @@ class Process(object):
 
 
 
-    def report(self):
+    def report(self, excel_file):
         
         pds = ProcessDataSheet()
-        pds.Print_Mass(self.model.streams, 'prd.xlsx')
+        pds.Print_Mass(self.model.streams, excel_file)
         pds.Print_Energy(self.model.natural_gas, self.model.coolwater, self.model.electricity,
-        self.model.refrigerant, self.model.steam, self.model.steam_gen, 'prd.xlsx')
+        self.model.refrigerant, self.model.steam, self.model.steam_gen, excel_file)
