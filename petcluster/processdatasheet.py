@@ -10,9 +10,10 @@ class ProcessDataSheet(object):
 
 
     def Print_Mass(self, material_streams, work_book):
+        '''Report the material balance of the process in the format required for the 
+        process datasheet documentation as part of the VICI project'''
         
         sheet_name = 'Mass balances' 
-        
         wb = load_workbook(work_book)
     
         # if the sheet doesn't exist, create a new sheet
@@ -23,6 +24,7 @@ class ProcessDataSheet(object):
         except:
             sheet = wb.create_sheet(sheet_name)
 
+        # Initialize counters 
         count = 0
         feed_count, feed_mass = 0, 0
         product_count,product_mass = 0, 0
@@ -31,21 +33,24 @@ class ProcessDataSheet(object):
         
         rw = 19
 
+        # Iterate over all the material streams of the aspen model
         for name, obj in material_streams.items():
             comp_count = 0
 
+            # If the material stream is a feed stream
             if obj.type == 'Feed':
                 row_start = rw + count
+                # Iterate over all the components in the material stream and print the component with 
+                # a mass fraction larger than 0.0001 
                 for comp, frac in obj.massfrac.items():
-                
                     if frac >= 0.0001:
-                        
                         sheet.cell(row=row_start + comp_count , column=4).value = comp
                         sheet.cell(row=row_start + comp_count , column=5).value = frac * 100
                         comp_count += 1
                         count += 1
                         feed_count += 1
 
+                # Print the stream name, mass flowrate, temperature and pressure
                 sheet.merge_cells(start_row= row_start, start_column=2, end_row=row_start+comp_count-1, end_column=2)
                 sheet.cell(row= row_start , column=2).value = name
                 sheet.merge_cells(start_row= row_start, start_column=3, end_row=row_start+comp_count-1, end_column=3)
@@ -57,9 +62,11 @@ class ProcessDataSheet(object):
                 sheet.merge_cells(start_row= row_start, start_column=7, end_row=row_start+comp_count-1, end_column=7)
                 sheet.cell(row= row_start , column=7).value = obj.pressure
 
-
+            # If the material stream is a product stream
             if obj.type == 'Product':
                 row_start = rw + count + 3
+                # Iterate over all the components in the material stream and print the component with 
+                # a mass fraction larger than 0.0001 
                 for comp, frac in obj.massfrac.items():
                     if frac >= 0.0001:
 
@@ -69,6 +76,7 @@ class ProcessDataSheet(object):
                         count += 1
                         product_count += 1
 
+                # Print the stream name, mass flowrate, temperature and pressure
                 sheet.merge_cells(start_row= row_start, start_column=2, end_row=row_start+comp_count-1, end_column=2)
                 sheet.cell(row= row_start , column=2).value = name
                 sheet.merge_cells(start_row= row_start, start_column=3, end_row=row_start+comp_count-1, end_column=3)
@@ -80,9 +88,11 @@ class ProcessDataSheet(object):
                 sheet.merge_cells(start_row= row_start, start_column=7, end_row=row_start+comp_count-1, end_column=7)
                 sheet.cell(row= row_start , column=7).value = obj.pressure
 
-
+            # If the material stream is a waste stream
             if obj.type == 'Waste':
                 row_start = rw + count + 6
+                # Iterate over all the components in the material stream and print the component with 
+                # a mass fraction larger than 0.0001 
                 for comp, frac in obj.massfrac.items():
                     if frac >= 0.0001:
                         sheet.cell(row=row_start + comp_count , column=4).value = comp
@@ -91,6 +101,7 @@ class ProcessDataSheet(object):
                         waste_count += 1
                         count += 1
 
+                # Print the stream name, mass flowrate, temperature and pressure
                 sheet.merge_cells(start_row= row_start, start_column=2, end_row=row_start+comp_count-1, end_column=2)
                 sheet.cell(row= row_start , column=2).value = name
                 sheet.merge_cells(start_row= row_start, start_column=3, end_row=row_start+comp_count-1, end_column=3)
@@ -151,10 +162,12 @@ class ProcessDataSheet(object):
 
     def Print_Energy(self, natural_gas, coolwater, electricity,
         refrigerant, steam, steam_gen, work_book):
+        '''Report the energy balance of the process in the format required for the 
+        process datasheet documentation as part of the VICI project'''
         
         sheet_name = 'Energy balances' 
-        
         wb = load_workbook(work_book)
+        # if the sheet doesn't exist, create a new sheet
         try:
             sheet = wb[sheet_name]
             wb.remove(sheet)
@@ -162,6 +175,7 @@ class ProcessDataSheet(object):
         except:
             sheet = wb.create_sheet(sheet_name)
 
+        # Initialize counters and set headers for the left and right columns
         start = 18
         util_count = 0
         headleft = ['Utility type','Input - TJ/y', 'Output TJ/y', 'Net TJ/y', 'Remark']
@@ -182,17 +196,18 @@ class ProcessDataSheet(object):
             self.fill_cell_bold(sheet, start-1, count_col, head)
             count_col += 1
         
+        # Initialize the headers and counters for printing the utility per block
         util_head = ['Unit name','Unit description','Duty MJ/hr', 'Duty TJ/y', 'Mass ktonne/y', 'Remark']
         elec_head = ['Unit name','Unit description','Power kW', 'Energy GWh/y', 'Energy TJ/y', 'Remark']
         cntrl = 0 
         cntrr = 0
         row_start = 18
 
-
+        # Initialize list of the possible steam types of the VICI project
         steam_types = [['LLPS','LLPS-GEN'],['LPS','LPS-GEN'],['MPS','MPS-GEN'],['HPS','HPS-GEN'],['HHPS','HHPS-GEN']]
 
-        
-        
+        # Steam
+        # Iterate over the list of steam levels 
         for stm_type in steam_types:
             head_count = 0
             self.fill_cell_bold(sheet, row_start + cntrl, 2, stm_type[0])
@@ -202,6 +217,7 @@ class ProcessDataSheet(object):
                 head_count += 1
             cntrl += 1
             try:
+                # For the selected steam level print the steam consumption duty and usage per block
                 for block in steam[stm_type[0]].blocks:
                     sheet.cell(row= row_start + cntrl , column=2).value = block.uid
                     sheet.cell(row= row_start + cntrl, column=4).value = block.duty
@@ -212,6 +228,7 @@ class ProcessDataSheet(object):
                 cntrl += 1
                 pass
             try:
+                # For the selected steam level print the steam generation duty and usage per block
                 for block in steam_gen[stm_type[1]].blocks:
                     sheet.cell(row= row_start + cntrl , column=2).value = block.uid
                     sheet.cell(row= row_start + cntrl, column=4).value = -block.duty
@@ -224,7 +241,7 @@ class ProcessDataSheet(object):
             cntrl += 1
 
 
-      
+        # Electricity 
         head_count = 0
         self.fill_cell_bold(sheet, row_start + cntrr, 10, 'Electricity')
         cntrr += 1
@@ -233,6 +250,7 @@ class ProcessDataSheet(object):
             head_count += 1
         cntrr += 1
         for util in electricity:
+            # Print the electricity duty and usage per block
             for block in util.blocks:
                 sheet.cell(row= row_start + cntrr , column=10).value = block.uid
                 sheet.cell(row= row_start + cntrr, column=12).value = block.usage
@@ -241,6 +259,7 @@ class ProcessDataSheet(object):
                 cntrr += 1
         cntrr += 1
         
+        # Natural gas 
         head_count = 0
         self.fill_cell_bold(sheet, row_start + cntrr, 10, 'Natural gas')
         cntrr += 1
@@ -249,6 +268,7 @@ class ProcessDataSheet(object):
             head_count += 1
         cntrr += 1
         for util in natural_gas:
+            # Print the natural gas duty and usage per block
             for block in util.blocks:
                 sheet.cell(row= row_start + cntrr , column=10).value = block.uid
                 sheet.cell(row= row_start + cntrr, column=12).value = block.duty
@@ -257,7 +277,7 @@ class ProcessDataSheet(object):
                 cntrr += 1
         cntrr += 1
 
-       
+        # Cooling water
         head_count = 0
         self.fill_cell_bold(sheet, row_start + cntrr, 10, 'Cooling water')
         cntrr += 1
@@ -266,6 +286,7 @@ class ProcessDataSheet(object):
             head_count += 1
         cntrr += 1
         for util in coolwater:
+            # Print the cooling water duty and usage per block
             for block in util.blocks:
                 sheet.cell(row= row_start + cntrr , column=10).value = block.uid
                 sheet.cell(row= row_start + cntrr, column=12).value = block.duty

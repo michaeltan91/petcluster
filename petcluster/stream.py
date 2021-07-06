@@ -7,6 +7,7 @@ class Stream(object):
 
         # Collect the mass fractions of the stream of all the components in the simulation
         self.massfrac = stream.massfrac
+
         #temp = [comp for comp, value in stream.massfrac.items() if value < 0.0001 ]
         # Dispose components with a fraction smaller than 0.0001 
         #for element in temp:
@@ -14,12 +15,13 @@ class Stream(object):
         
         # Collect the mole fractions of the stream of the all the components in the simulation 
         self.molefrac = stream.molefrac
+
         #temp = [comp for comp, value in stream.molefrac.items() if value < 0.0001 ]
         # Dispose components with a fraction smaller than 0.0001
         #for element in temp:
         #    self.molefrac.pop(element)
 
-
+        # Collect the mass flowrate, mole flowrate, temperature and pressure of the stream from the aspen simulation
         self.massflow = stream.massflow
         self.moleflow = stream.moleflow
         self.pressure = stream.pressure

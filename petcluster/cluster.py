@@ -28,29 +28,32 @@ class Cluster(object):
 
         for f in files:
             if f.endswith('.bkp'):
+                # Retrieve the process ID and process name from the file name 
                 uid = f.split(sep,1)[0]
                 ttt = f.split(sep,1)[1]
                 process_name = ttt.split('.bkp',1)[0]
                 
+                # Open the Aspen Plus simulation using "aspenauto"
                 model = Model(f)
+                # Run aspen simulation without error report
                 model.run(report_error = False)
                 
                 for stream in model.material_streams:
-                    # Load and store the feed streams
+                    # Load and store the feed streams in the static table
                     if stream.type is "Feed":
                         df.loc[row, 'Process ID'] = uid
                         df.loc[row, 'Process Name'] = process_name
                         df.loc[row, 'Stream in'] = stream.name
                         df.loc[row, 'Amount in'] = stream.massflow
                         row += 1
-                    # Load and store the product streams
+                    # Load and store the product streams in the static table
                     elif stream.type is "Product":
                         df.loc[prod_row, 'Process ID'] = uid
                         df.loc[prod_row, 'Process Name'] = process_name
                         df.loc[prod_row, 'Stream out'] = stream.name
                         df.loc[prod_row, 'Amount out'] = stream.massflow
                         prod_row += 1
-                        # Load and store the waste streams
+                        # Load and store the waste streams in the static table
                     elif stream.type is "Waste":
                         df.loc[prod_row, 'Process ID'] = uid
                         df.loc[prod_row, 'Process Name'] = process_name
@@ -86,17 +89,22 @@ class Cluster(object):
         row = len(df.index)
         prod_row = row
 
+        # Retrieve the process ID and process name from the file name 
         uid = aspen_file.split(sep,1)[0]
         ttt = aspen_file.split(sep,1)[1]
         process_name = ttt.split('.bkp',1)[0]
 
+        # Check whether the process is already part of the static table by comparing the process ID
         if uid in self.table.values:
             raise ValueError('The requested process is already part of the static table')
 
+        # Open the Aspen Plus simulation using "aspenauto"
         model = Model(aspen_file)
+        # Run aspen simulation without error report
         model.run(report_error = False)
-
+        
         for stream in model.material_streams:
+            # Load and store the feed streams in the static table
             if stream.type is "Feed":
                 df.loc[row, 'Process ID'] = uid
                 df.loc[row, 'Process Name'] = process_name
@@ -104,18 +112,21 @@ class Cluster(object):
                 df.loc[row, 'Amount in'] = stream.massflow
                 row += 1
             elif stream.type is "Product":
+                # Load and store the product streams in the static table
                 df.loc[prod_row, 'Process ID'] = uid
                 df.loc[prod_row, 'Process Name'] = process_name
                 df.loc[prod_row, 'Stream out'] = stream.name
                 df.loc[prod_row, 'Amount out'] = stream.massflow
                 prod_row += 1
             elif stream.type is "Waste":
+                # Load and store the waste streams in the static table
                 df.loc[prod_row, 'Process ID'] = uid
                 df.loc[prod_row, 'Process Name'] = process_name
                 df.loc[prod_row, 'Stream out'] = stream.name
                 df.loc[prod_row, 'Amount out'] = stream.massflow
                 prod_row += 1  
 
+        # Close the aspen model
         model.close()
         self.table = df
 

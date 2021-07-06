@@ -1,5 +1,3 @@
-from numpy.core.fromnumeric import product
-from numpy.lib.function_base import kaiser
 import pandas as pd
 from aspenauto import Model
 from warnings import warn
@@ -97,16 +95,17 @@ class Process(object):
 
     def add_manual_steam_gen(self, steam_type, block, heatstream, stream):
         '''Add a manual steam generation utility'''
+        # Retrieve the heatstream and material stream from the aspen simulation
         hs = self.model.heat_streams[heatstream]
         ms =self.model.streams[stream]
         
-        # 
+        # Assign the steam generation utility to the requested block, 
         steam = Steam_Gen_Manual(block, hs, ms )
         try: 
             self.model.utilities[steam_type].blocks[block] = steam
             self.model.steam_gen[steam_type].blocks[block] = steam
         
-        # When the requested utility is not yet defined
+        # When the requested utility is not yet defined, it is created
         except KeyError:
             temp = Manual_Utility(())
             self.model.utilities[steam_type] = temp 
@@ -118,12 +117,16 @@ class Process(object):
 
     def add_manual_natural_gas(self, block, ng_stream_id):
         '''Add a manual natural gas utility'''
+
+        # Retrieve the natural gas material stream from the aspen simulation
         ng_stream = self.model.streams[ng_stream_id]
 
         natural_gas = Natural_Gas_Manual(block, ng_stream)
         try:
             self.model.utilities['NG'].blocks[block] = natural_gas
             self.model.natural_gas['NG'].blocks[block] = natural_gas
+        
+        # If the requested utility is not yet defined, it is created
         except KeyError:
             temp = Manual_Utility()
             self.model.utilities['NG'] = temp
