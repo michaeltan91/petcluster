@@ -1,8 +1,9 @@
-from aspenauto import Model
+from aspenauto import Model, ObjectCollection
 import os
 import pandas as pd
 import numpy as np
 import warnings
+import pickle
 
 from .process import Process
 
@@ -145,4 +146,11 @@ class Cluster(object):
                 self.processes[uid] = model
                 model.process_data(f)
                 model.close_aspen()
+
+
+    def load_components(self, component_file):
+        '''Load the component list from excel'''
+        self.component_list = pd.read_excel(component_file, index_col=1)
+
+         
 

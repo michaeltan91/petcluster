@@ -21,6 +21,15 @@ class Steam_Gen_Manual(object):
         self.usage = stream.massflow
 
 
+class Steam_Stripping(object):
+    '''Manual steam stripping class'''
+
+    def __init__(self, uid, stream):
+
+        self.uid = uid
+        self.usage = stream.massflow
+
+
 class Natural_Gas_Manual(object):
     '''Manual natural gas utility class'''
 
