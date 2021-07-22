@@ -1,5 +1,6 @@
+import warnings
 import pandas as pd
-from aspenauto import Model
+from aspenauto import Model, ObjectCollection
 from warnings import warn
 
 from .stream import Stream
@@ -26,7 +27,7 @@ class Process(object):
         feed_streams = []
         product_streams = []
         waste_streams = []
-        self.utilities = self.model.utilities
+        #self.utilities = self.model.utilities
 
         # Fill lists for material feed, product and waste streams
         for stream in self.model.material_streams:
@@ -70,6 +71,54 @@ class Process(object):
             # Set the units of energy to TJ per operating year
             self.energy[steam[0]] = temp * 8000 * 1E-6
 
+        # Load the total electricity duty being utilized by the process
+        temp = 0
+        try:   
+            for block in self.model.electricity['ELECTRIC'].blocks:
+                temp += block.duty
+            self.energy['Electricity'] = temp* 8000 * 1E-6 * 3.6
+        except KeyError:
+            pass
+
+        # Load the total cooling water duty being utilized by the process
+        temp = 0
+        try:
+            for block in self.model.coolwater['CW'].blocks:
+                temp += block.duty
+            self.energy['Cooling water'] = temp * 8000 * 1E-6
+        except KeyError:
+            pass
+        
+        # Load the total natural gas duty being utilized by the process
+        temp = 0
+        try:
+            for block in self.model.natural_gas['NG'].blocks:
+                temp += block.duty
+            self.energy['NG'] = temp * 8000 * 1E-6
+        except KeyError:
+            pass
+
+        # Load chilled water
+        temp = 0
+        try:
+            for block in self.model.refrigerant['CHILLED'].blocks:
+                temp += block.duty
+            self.energy['Chilled Water'] = temp * 8000 * 1E-6
+        except KeyError:
+            pass
+        
+        # Load refrigerants
+        refrigerant_types = ['R134a', 'R717', 'R-410a', 'R41', 'R1150', 'R740']
+        for refrig in refrigerant_types:
+            temp = 0 
+            try:
+                for block in self.model.refrigerant[refrig].blocks:
+                    temp += block.duty
+                self.energy[refrig] = temp * 8000 * 1E-6
+            except KeyError:
+                pass
+
+
         #self.report(model.streams, model.natural_gas, model.coolwater, model.electricity,
         #model.refrigerant, model.steam, model.steam_gen)
 
@@ -91,6 +140,7 @@ class Process(object):
     def close_aspen(self):
         """Closes the Aspen model and shuts down the Engine"""
         self.model.close()
+        del(self.model)
 
 
     def add_manual_steam_gen(self, steam_type, block, heatstream, stream):
@@ -160,13 +210,56 @@ class Process(object):
             except KeyError:
                 pass
 
-        return waste_mass / product_mass, waste_mass, product_mass
+        return waste_mass / product_mass
 
 
     def GWP(self):
         
         return 1
 
+
+    def carbon_intensity(self, component_list):
+        carbon_feed, carbon_waste, carbon_product = 0, 0, 0
+        for name, stream in self.material_feed.items():
+            temp = 0
+             
+            for component, value in stream.molefrac.items():
+                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
+            stream.carbonfrac = temp/stream.massflow
+            carbon_feed += temp
+
+        for name, stream in self.material_product.items():
+            temp = 0 
+            for component, value in stream.molefrac.items():
+                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
+            stream.carbonfrac = temp/stream.massflow
+            carbon_product += temp
+
+        for name, stream in self.material_waste.items():
+            temp = 0 
+            for component, value in stream.molefrac.items():
+                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
+            stream.carbonfrac = temp/stream.massflow
+            carbon_waste += temp
+        
+        balance = carbon_feed - carbon_product - carbon_waste
+        if balance/carbon_feed > 0.0001:
+            warnings.warn("Carbon leak in process")
+        else:
+            return min(carbon_product/carbon_feed, 1)
+
+
+    def process_water(self):
+
+        water = 0
+        # Determine the total amount of water used in the process
+        for name, stream in self.material_feed.items():
+            try:
+                water += stream.massfrac['H2O'] * stream.massflow
+            except KeyError:
+                pass
+
+        return water
 
 
     def report(self, excel_file):
