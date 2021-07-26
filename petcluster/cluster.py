@@ -144,7 +144,7 @@ class Cluster(object):
 
                 model = Process(f)
                 self.processes[uid] = model
-                model.process_data()
+                model.load_process_data()
                 model.close_aspen()
 
 
