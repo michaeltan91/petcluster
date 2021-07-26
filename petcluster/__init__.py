@@ -1,2 +1,4 @@
 from .cluster import Cluster
-from .process import Process 
+from .aspendata import Process
+
+from .model import ClusterModel

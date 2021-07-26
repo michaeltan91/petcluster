@@ -5,7 +5,7 @@ import numpy as np
 import warnings
 import pickle
 
-from .process import Process
+from .aspendata.process import Process
 
 class Cluster(object):
 
@@ -142,9 +142,9 @@ class Cluster(object):
                 ttt = f.split(sep,1)[1]
                 process_name = ttt.split('.bkp',1)[0]
 
-                model = Process()
+                model = Process(f)
                 self.processes[uid] = model
-                model.process_data(f)
+                model.process_data()
                 model.close_aspen()
 
 
@@ -152,5 +152,19 @@ class Cluster(object):
         '''Load the component list from excel'''
         self.component_list = pd.read_excel(component_file, index_col=1)
 
-         
+
+
+class Cluster2(object):
+
+    def __init__(self):
+        self.process_nodes = {}
+        self.resource_links = {}
+        self.electricitly_links = {}
+
+
+    
+    
+
+
+
 

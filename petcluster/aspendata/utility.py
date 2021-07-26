@@ -24,9 +24,22 @@ class Steam_Gen_Manual(object):
 class Steam_Stripping(object):
     '''Manual steam stripping class'''
 
-    def __init__(self, uid, stream):
-
+    def __init__(self, uid, stream, steam_type):
+        # Heating value given in MJ/kg
+        heating = {
+            'LLPS': 2.13536712,
+            'LPS': 2.09553499,
+            'MPS': 1.87787119,
+            'HPS': 1.63234735,
+            'HHPS': 1.96662214 
+        }
+        try:
+            heat_value = heating[steam_type]
+        except KeyError:
+            print(steam_type, 'has not been defined and does not match the name agreed upon in the VICI project' )
+            pass
         self.uid = uid
+        self.duty = stream.massflow * 1E6 / 8000 * heat_value
         self.usage = stream.massflow
 
 
