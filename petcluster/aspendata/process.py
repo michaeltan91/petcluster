@@ -6,7 +6,6 @@ from warnings import warn
 from .stream import Stream
 from .processdatasheet import ProcessDataSheet
 from .utility import Manual_Utility, Natural_Gas_Manual, Steam_Gen_Manual, Steam_Stripping
-from petcluster.aspendata import utility
 
 
 class Process(object):
@@ -21,8 +20,75 @@ class Process(object):
         self.aspen = Model(aspen_file)
         self.aspen.run(report_error=False)
 
-    def process_data(self):
+
+    def add_manual_steam_gen(self, steam_type, block, heatstream, stream):
+        '''Add a manual steam generation utility'''
+        # Retrieve the heatstream and material stream from the aspen simulation
+        hs = self.aspen.heat_streams[heatstream]
+        ms =self.aspen.streams[stream]
         
+        # Assign the steam generation utility to the requested block, 
+        steam = Steam_Gen_Manual(block, hs, ms )
+        try: 
+            self.aspen.utilities[steam_type].blocks[block] = steam
+            self.aspen.steam_gen[steam_type].blocks[block] = steam
+        
+        # When the requested utility is not yet defined, it is created
+        except KeyError:
+            utility = Manual_Utility()
+            self.aspen.utilities[steam_type] = utility 
+            self.aspen.steam_gen[steam_type] = utility
+            self.aspen.utilities[steam_type].blocks[block] = steam
+            self.aspen.steam_gen[steam_type].blocks[block] = steam
+            warn("Created utility",steam_type,"if not intended check syntax")
+
+    
+    def add_manual_steam_stripping(self, steam_type, block, stream_id):
+        
+        steam_stream = self.aspen.streams[stream_id]
+        steam_stripping = Steam_Stripping(block, steam_stream, steam_type)
+
+        try:
+            self.aspen.utilities[steam_type].blocks[block] = steam_stripping
+            self.aspen.steam[steam_type].blocks[block] = steam_stripping
+
+        # If the requested utility is not yet defined, it is created
+        except KeyError:
+            utility = Manual_Utility()
+            self.aspen.utilities[steam_type] = utility
+            self.aspen.steam[steam_type] = utility
+            self.aspen.utilities[steam_type].blocks[block] = steam_stripping
+            self.aspen.steam[steam_type].blocks[block] = steam_stripping
+            warn("Created utility",steam_type,"if not intended check syntax")
+
+
+    def add_manual_natural_gas(self, block, ng_stream_id):
+        '''Add a manual natural gas utility'''
+
+        # Retrieve the natural gas material stream from the aspen simulation
+        ng_stream = self.aspen.streams[ng_stream_id]
+
+        natural_gas = Natural_Gas_Manual(block, ng_stream)
+        try:
+            self.aspen.utilities['NG'].blocks[block] = natural_gas
+            self.aspen.natural_gas['NG'].blocks[block] = natural_gas
+        
+        # If the requested utility is not yet defined, it is created
+        except KeyError:
+            utility = Manual_Utility()
+            self.aspen.utilities['NG'] = utility
+            self.aspen.natural_gas['NG'] = utility
+            self.aspen.utilities['NG'].blocks[block] = natural_gas
+            self.aspen.natural_gas['NG'].blocks[block] = natural_gas
+            warn("Created utility NG if not intended check syntax")
+
+
+    def load_process_data(self):
+        '''
+        Load the process data from the Aspen Model
+        Add the manual utilities before loading the complete process data!!!!
+        '''
+
         outlet_streams = []
         feed_streams = []
         product_streams = []
@@ -118,10 +184,6 @@ class Process(object):
             except KeyError:
                 pass
 
-
-        #self.report(model.streams, model.natural_gas, model.coolwater, model.electricity,
-        #model.refrigerant, model.steam, model.steam_gen)
-
         """"
         header = pd.MultiIndex.from_product([outlet_streams,['m_out','massflow','X']],names=['stream', 'type'])
         df = pd.DataFrame(np.zeros([0,len(header)]),  
@@ -143,67 +205,6 @@ class Process(object):
         del(self.aspen)
 
 
-    def add_manual_steam_gen(self, steam_type, block, heatstream, stream):
-        '''Add a manual steam generation utility'''
-        # Retrieve the heatstream and material stream from the aspen simulation
-        hs = self.aspen.heat_streams[heatstream]
-        ms =self.aspen.streams[stream]
-        
-        # Assign the steam generation utility to the requested block, 
-        steam = Steam_Gen_Manual(block, hs, ms )
-        try: 
-            self.aspen.utilities[steam_type].blocks[block] = steam
-            self.aspen.steam_gen[steam_type].blocks[block] = steam
-        
-        # When the requested utility is not yet defined, it is created
-        except KeyError:
-            utility = Manual_Utility()
-            self.aspen.utilities[steam_type] = utility 
-            self.aspen.steam_gen[steam_type] = utility
-            self.aspen.utilities[steam_type].blocks[block] = steam
-            self.aspen.steam_gen[steam_type].blocks[block] = steam
-            warn("Created utility",steam_type,"if not intended check syntax")
-
-    
-    def add_manual_steam_stripping(self, steam_type, block, stream_id):
-        
-        steam_stream = self.aspen.streams[stream_id]
-        steam_stripping = Steam_Stripping(block, steam_stream, steam_type)
-
-        try:
-            self.aspen.utilities[steam_type].blocks[block] = steam_stripping
-            self.aspen.steam[steam_type].blocks[block] = steam_stripping
-
-        # If the requested utility is not yet defined, it is created
-        except KeyError:
-            utility = Manual_Utility()
-            self.aspen.utilities[steam_type] = utility
-            self.aspen.steam[steam_type] = utility
-            self.aspen.utilities[steam_type].blocks[block] = steam_stripping
-            self.aspen.steam[steam_type].blocks[block] = steam_stripping
-
-
-    def add_manual_natural_gas(self, block, ng_stream_id):
-        '''Add a manual natural gas utility'''
-
-        # Retrieve the natural gas material stream from the aspen simulation
-        ng_stream = self.aspen.streams[ng_stream_id]
-
-        natural_gas = Natural_Gas_Manual(block, ng_stream)
-        try:
-            self.aspen.utilities['NG'].blocks[block] = natural_gas
-            self.aspen.natural_gas['NG'].blocks[block] = natural_gas
-        
-        # If the requested utility is not yet defined, it is created
-        except KeyError:
-            utility = Manual_Utility()
-            self.aspen.utilities['NG'] = utility
-            self.aspen.natural_gas['NG'] = utility
-            self.aspen.utilities['NG'].blocks[block] = natural_gas
-            self.aspen.natural_gas['NG'].blocks[block] = natural_gas
-            warn("Created utility NG if not intended check syntax")
-
-    
     def report(self, excel_file):
         
         pds = ProcessDataSheet()
@@ -212,11 +213,10 @@ class Process(object):
         self.aspen.refrigerant, self.aspen.steam, self.aspen.steam_gen, excel_file)
 
 
-    def load_process_data(self, aspen_file):
 
-        model = Model(aspen_file)
 
-        
+
+
     def e_factor(self):
         """Calculate the environmental factor a process, defined as the mass of waste (excluding water)
         divided by the total mass of product"""
@@ -237,12 +237,6 @@ class Process(object):
                 pass
 
         return waste_mass / product_mass
-
-
-
-
-
-
 
 
     def GWP(self):
