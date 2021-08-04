@@ -21,11 +21,11 @@ class Process(object):
         self.aspen.run(report_error=False)
 
 
-    def add_manual_steam_gen(self, steam_type, block, heatstream, stream):
+    def add_manual_steam_gen(self, steam_type, block, heatstream, steam_stream_id):
         '''Add a manual steam generation utility'''
         # Retrieve the heatstream and material stream from the aspen simulation
         hs = self.aspen.heat_streams[heatstream]
-        ms =self.aspen.streams[stream]
+        ms =self.aspen.streams[steam_stream_id]
         
         # Assign the steam generation utility to the requested block, 
         steam = Steam_Gen_Manual(block, hs, ms )
@@ -141,7 +141,7 @@ class Process(object):
         temp = 0
         try:   
             for block in self.aspen.electricity['ELECTRIC'].blocks:
-                temp += block.duty
+                temp += block.usage
             self.energy['Electricity'] = temp* 8000 * 1E-6 * 3.6
         except KeyError:
             pass
@@ -199,12 +199,6 @@ class Process(object):
         """
 
 
-    def close_aspen(self):
-        """Closes the Aspen model and shuts down the Engine"""
-        self.aspen.close()
-        del(self.aspen)
-
-
     def report(self, excel_file):
         
         pds = ProcessDataSheet()
@@ -212,6 +206,11 @@ class Process(object):
         pds.Print_Energy(self.aspen.natural_gas, self.aspen.coolwater, self.aspen.electricity,
         self.aspen.refrigerant, self.aspen.steam, self.aspen.steam_gen, excel_file)
 
+
+    def close_aspen(self):
+        """Closes the Aspen model and shuts down the Engine"""
+        self.aspen.close()
+        del(self.aspen)
 
 
 
