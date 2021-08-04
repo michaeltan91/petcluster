@@ -3,16 +3,16 @@ from .baseobject import BaseObject
 
 class Link(BaseObject):
 
-    def __init__(self):
+    def __init__(self, uid):
         self.node_from = []
         self.node_to = []
-        super().__init__()
+        super().__init__(uid)
 
 
 
 class  ResourceLink(Link):
 
-    def __init__(self):
+    def __init__(self, uid):
 
         self.resource_type = ''
         self.mass_flow_rate = 0
@@ -25,18 +25,8 @@ class  ResourceLink(Link):
         self.mass_fraction = 0
         self.mole_fraction = 0
 
-        """"
-        self.resource_type = ''
-        self.mass_flow_rate = stream.massflow
-        self.mole_flow_rate = stream.moleflow
-        self.volume_flow_rate = stream.volflow
-        self.pressure = stream.pressure
-        self.temperature = stream.temperature 
-        self.carbon_fraction = self.calculate_carbon_content(stream, component_list)
-        self.mass_fraction = stream.massfrac
-        self.mole_fraction = stream.molefrac
-        """
-        super().__init__()
+        
+        super().__init__(uid)
 
 
     def calculate_carbon_content(self, stream, component_list):
@@ -50,6 +40,6 @@ class  ResourceLink(Link):
 
 class ElectricityLink(Link):
     
-    def __init__(self):
+    def __init__(self, uid):
         self.energy
-        super().__init__()
+        super().__init__(uid)

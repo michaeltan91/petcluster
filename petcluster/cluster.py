@@ -5,7 +5,7 @@ import numpy as np
 import warnings
 import pickle
 
-from .aspendata.process import Process
+from .aspendata import Process
 
 class Cluster(object):
 
@@ -140,6 +140,8 @@ class Cluster(object):
             if f.endswith('.bkp'):
                 uid = f.split(sep,1)[0]
                 ttt = f.split(sep,1)[1]
+                if uid.endswith('.'):
+                    uid = uid[:-1]
                 process_name = ttt.split('.bkp',1)[0]
 
                 model = Process(f)

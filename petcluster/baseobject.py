@@ -2,9 +2,9 @@
 
 class BaseObject(object):
 
-    def __init__(self):
+    def __init__(self, uid):
 
-        self.uid = ''
+        self.uid = uid
         self.source = ''
         self.model_version = ''
         self.editor = ''
