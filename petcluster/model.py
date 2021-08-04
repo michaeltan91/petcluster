@@ -1,10 +1,13 @@
 import os
+import warnings
 import pandas as pd
 import numpy as np
 
 from aspenauto import Model
 from .link import ResourceLink, ElectricityLink
 from .node import ProcessNode, BackgroundNode
+
+import json
 
 class ClusterModel(object):
 
@@ -14,12 +17,16 @@ class ClusterModel(object):
         self.cluster = {}
         self._table = None
 
+        self.nodes = {}
+        self.links = {}
+    
 
     @property
     def table(self):
         if self._table is None:
             raise Exception('Static table has not been generated or loaded')
         return self._table
+
 
     def create_static_table(self):
         """"Create a static table from Aspen Models"""
@@ -41,6 +48,8 @@ class ClusterModel(object):
                 uid = f.split(sep,1)[0]
                 ttt = f.split(sep,1)[1]
                 process_name = ttt.split('.bkp',1)[0]
+                if uid.endswith('.'):
+                    uid = uid[:-1]
                 
                 # Open the Aspen Plus simulation using "aspenauto"
                 model = Model(f)
@@ -142,3 +151,70 @@ class ClusterModel(object):
         # Close the aspen model
         model.close()
         self._table = df
+
+
+
+    def load_cluster_aspen(self):
+        """Load the cluster using the aspen models, static table and 'process_data.json'"""
+
+        # Check whether the static table has been loaded
+        if self._table is None:
+            warnings.warn('The static table of the cluster has not been loaded into the model')
+            return
+
+
+        # Load the mapping of all streams entering the process nodes
+        #mapping_in = self.table.drop(['Type','OID', 'Stream out', 'Amount out', 'Treatment', 'Notes'], axis = 'columns')
+        #mapping_in = mapping_in.dropna()
+        list_in = self.table.drop(['Type','OID', 'Stream out', 'Amount out', 'Treatment', 'Notes'], axis = 'columns')
+        list_in = list_in.dropna()
+        mapping_in = [[x1,x2,x3,x4] for x1, x2, x3, x4 in zip(list_in['Process ID'], list_in['IID'], list_in['Stream in'], list_in['Amount in'])]
+
+        self.mapping_in = {}
+        for stream in mapping_in:
+            node = stream[0]
+            if node not in self.mapping_in.keys():
+                self.mapping_in[node] = []
+            self.mapping_in[node].append(stream)
+        #self.mapping_in =  {x2+'-'+x1:[x2,x1,x3,x4] for x1, x2, x3, x4 in zip(y['Process ID'], y['IID'], y['Stream in'], y['Amount in'])}
+
+        # Load the mapping of all streams leaving the process nodes
+        #mapping_out = self.table.drop(['IID', 'Stream in', 'Amount in', 'Type', 'Treatment', 'Notes'], axis = 'columns')
+        #mapping_out = mapping_out.dropna()
+        list_out = self.table.drop(['IID', 'Stream in', 'Amount in', 'Type', 'Treatment', 'Notes'], axis = 'columns')
+        list_out = list_out.dropna()
+        mapping_out = [[x1,x2,x3,x4] for x1, x2, x3, x4 in zip(list_out['Process ID'], list_out['OID'], list_out['Stream out'], list_out['Amount out'])]
+
+        self.mapping_out = {}
+        for stream in mapping_out:
+            node = stream[0]
+            if node not in self.mapping_out.keys():
+                self.mapping_out[node] = []
+            self.mapping_out[node].append(stream)
+        #self.mapping_out = {x1+'-'+x2:[x1,x2,x3,x4] for x1, x2, x3, x4 in zip(y['Process ID'], y['OID'], y['Stream out'], y['Amount out'])}
+
+
+        # Make a list of all the files in current directory
+        files = [f for f in os.listdir('.') if os.path.isfile(f)]
+
+        # Load the process data from 'process_data.json'
+        with open("process_data.json") as jsonFile:
+            process_data = json.load(jsonFile)
+            jsonFile.close()
+        
+        # Iterate over all the files
+        sep = ' '
+        for f in files:
+            # Only open the Aspen Plus backup files
+            if f.endswith('.bkp'):
+                uid = f.split(sep,1)[0]
+                ttt = f.split(sep,1)[1]
+                
+                uid = uid.replace('.', '')
+                process_name = ttt.split('.bkp',1)[0]
+
+                node = ProcessNode(uid)
+                node.load_aspen_data(f, process_data)
+                self.nodes[uid] = node
+        
+                
