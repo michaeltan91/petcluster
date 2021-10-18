@@ -1,5 +1,6 @@
 import warnings
 import pandas as pd
+import numpy as np
 from aspenauto import Model, ObjectCollection
 from warnings import warn
 
@@ -15,6 +16,7 @@ class Process(object):
         self.material_feed = {}
         self.material_product = {}
         self.material_waste = {}
+        self.material_all = {}
 
         # Load the Aspen model and run it
         self.aspen = Model(aspen_file)
@@ -107,14 +109,20 @@ class Process(object):
                 outlet_streams.append(stream.name)
 
         # Load material feed data from Aspen model
-        for stream in feed_streams:
-            self.material_feed[stream] = Stream(self.aspen.streams[stream])
+        for stream_id in feed_streams:
+            stream = Stream(self.aspen.streams[stream_id])
+            self.material_feed[stream_id] = stream
+            self.material_all[stream_id] = stream
         # Load material product data from Aspen model
-        for stream in product_streams:
-            self.material_product[stream] = Stream(self.aspen.streams[stream])
+        for stream_id in product_streams:
+            stream = Stream(self.aspen.streams[stream_id])
+            self.material_product[stream_id] = stream
+            self.material_all[stream_id] = stream
         # Load material waste data from Aspen model
-        for stream in waste_streams:
-            self.material_waste[stream] = Stream(self.aspen.streams[stream])
+        for stream_id in waste_streams:
+            stream = Stream(self.aspen.streams[stream_id])
+            self.material_waste[stream_id] = stream
+            self.material_all[stream_id] = stream
 
         # Make a list of the standard steam definitions of the VICI project
         steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN'], ['HPS','HPS-GEN'], ['HHPS','HHPS-GEN']]
@@ -184,7 +192,7 @@ class Process(object):
             except KeyError:
                 pass
 
-        """"
+        
         header = pd.MultiIndex.from_product([outlet_streams,['m_out','massflow','X']],names=['stream', 'type'])
         df = pd.DataFrame(np.zeros([0,len(header)]),  
                         columns=header)
@@ -196,7 +204,8 @@ class Process(object):
                     df.loc[count,(name,'m_out')] = comp
                     df.loc[count,(name,'massflow')] = value * self.aspen.streams[name].massflow 
                     count += 1
-        """
+        self.superstructure = df
+        
 
 
     def report(self, excel_file):
@@ -211,8 +220,6 @@ class Process(object):
         """Closes the Aspen model and shuts down the Engine"""
         self.aspen.close()
         del(self.aspen)
-
-
 
 
 
@@ -241,6 +248,23 @@ class Process(object):
     def GWP(self):
         
         return 1
+    
+
+    def calculate_carbon_fraction(self, component_list):
+        """Calculate the carbon fraction of all the material feed, product and waste streams"""
+        if isinstance(component_list, pd.DataFrame) is False:
+            component_list = pd.read_excel(component_list, index_col=1)
+
+        for name, stream in self.material_feed.items():
+            stream.calc_carbon_frac(component_list)
+
+        for name, stream in self.material_product.items():
+            stream.calc_carbon_frac(component_list)
+
+        for name, stream in self.material_waste.items():
+            stream.calc_carbon_frac(component_list)
+
+        
 
 
     def carbon_intensity(self, component_list):

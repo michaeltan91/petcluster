@@ -5,18 +5,18 @@ from .aspendata import Process
 
 class Node(BaseObject):
 
-    def __init__(self, uid):
+    def __init__(self, uid, cluster):
         
         self.links_in = {}
         self.links_out = {}
-        super().__init__(uid)
+        super().__init__(uid, cluster)
 
     
 
 
 class ProcessNode(Node):
 
-    def __init__(self, uid):
+    def __init__(self, uid, cluster):
         
         self.process_type = ''
         self.process_name = ''
@@ -30,10 +30,10 @@ class ProcessNode(Node):
         self.opex = 0
         self.aspen_data = None
 
-        super().__init__(uid)
+        super().__init__(uid, cluster)
 
 
-    def load_aspen_data(self, aspen_file, process_data):
+    def load_aspen_data(self, aspen_file, process_data, component_list):
         """
         Loads the data from the aspen plus model
         Assigns manual steam generation, manual natural gas or manual steam stripping utilities
@@ -76,13 +76,17 @@ class ProcessNode(Node):
             pass
         
         self.aspen_data.load_process_data()
+        self.aspen_data.calculate_carbon_fraction(component_list)
+
+        self.energy_consumption = self.aspen_data.energy
+
         self.aspen_data.close_aspen()
 
 
 
 class BackgroundNode(Node):
 
-    def __init__(self, uid):
+    def __init__(self, uid, data, cluster):
         self.energy_consumption = 0
         self.environmental_impact = {}
-        super().__init__(uid)
+        super().__init__(uid, cluster)

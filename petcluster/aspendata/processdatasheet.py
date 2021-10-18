@@ -206,6 +206,9 @@ class ProcessDataSheet(object):
         # Initialize list of the possible steam types of the VICI project
         steam_types = [['LLPS','LLPS-GEN'],['LPS','LPS-GEN'],['MPS','MPS-GEN'],['HPS','HPS-GEN'],['HHPS','HHPS-GEN']]
 
+        # Initialize list of the possible refrigerant types of the VICI project
+        refrigerant_types = ['CHILLED','R134a', 'R717', 'R-410a', 'R41', 'R1150', 'R740']
+
         # Steam
         # Iterate over the list of steam levels 
         for stm_type in steam_types:
@@ -240,7 +243,27 @@ class ProcessDataSheet(object):
                 pass
             cntrl += 1
 
-
+        # Refrigerants
+        for refrig_type in refrigerant_types:
+            head_count = 0
+            self.fill_cell_bold(sheet, row_start + cntrl, 2, refrig_type)
+            cntrl += 1
+            for header in util_head:
+                self.fill_cell_bold(sheet,  row_start + cntrl, 2 + head_count, header)
+                head_count += 1
+            cntrl += 1
+            try:
+                # For the selected steam level print the steam consumption duty and usage per block
+                for block in refrigerant[refrig_type].blocks:
+                    sheet.cell(row= row_start + cntrl , column=2).value = block.uid
+                    sheet.cell(row= row_start + cntrl, column=4).value = block.duty
+                    sheet.cell(row= row_start + cntrl, column=5).value = block.duty * 8000 * 1E-6
+                    sheet.cell(row= row_start + cntrl, column=6).value = block.usage
+                    cntrl += 1
+            except KeyError:
+                pass
+            cntrl += 1
+            
         # Electricity 
         head_count = 0
         self.fill_cell_bold(sheet, row_start + cntrr, 10, 'Electricity')

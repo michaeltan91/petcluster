@@ -1,18 +1,16 @@
 
 from .baseobject import BaseObject
-
+import warnings
 class Link(BaseObject):
 
-    def __init__(self, uid):
-        self.node_from = []
-        self.node_to = []
-        super().__init__(uid)
+    def __init__(self, uid, cluster):
+        super().__init__(uid, cluster)
 
 
 
 class  ResourceLink(Link):
 
-    def __init__(self, uid):
+    def __init__(self, uid, cluster):
 
         self.resource_type = ''
         self.mass_flow_rate = 0
@@ -25,21 +23,71 @@ class  ResourceLink(Link):
         self.mass_fraction = 0
         self.mole_fraction = 0
 
-        
-        super().__init__(uid)
+        self._node_from = []
+        self._node_to = []
+
+        super().__init__(uid, cluster)
 
 
-    def calculate_carbon_content(self, stream, component_list):
+    @property
+    def massflow(self):
+        return self.mass_flow_rate
+
+    @property
+    def moleflow(self):
+        return self.mole_flow_rate
+
+    @property
+    def volflow(self):
+        return self.volume_flow_rate
+
+    @property
+    def massfrac(self):
+        return self.mass_fraction
+
+    @property
+    def molefrac(self):
+        return self.mole_fraction
+
+    @property
+    def node_from(self):
+        if len(self._node_from) == 0:
+            warnings.warn('Link data has not yet been loaded')
+        else:
+            key = self._node_from
+            value = self.cluster.nodes[self._node_from]
+            return dict([(key,value)])
+
+    @property
+    def node_to(self):
+        if len(self._node_to) == 0:
+            warnings.warn('Link data has not yet been loaded')
+        else:
+            key = self._node_to
+            value = self.cluster.nodes[self._node_to]
+            return dict([(key,value)])
         
-        total_carbon = 0
-        for component, value in stream.molefrac.items():
-            total_carbon += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
-            carbonfrac = total_carbon/stream.massflow
-        return carbonfrac 
+
+    def load_aspen_data(self, stream, massflow, node_from, node_to, node_model):
+        self.mass_flow_rate = massflow
+        self.mole_flow_rate = massflow / stream.massflow * stream.moleflow
+        self.volume_flow_rate = massflow / stream.massflow * stream.volflow
+        self.pressure = stream.pressure
+        self.temperature = stream.temperature  
+
+        self.mass_fraction = stream.massfrac
+        self.mole_fraction = stream.molefrac
+        self.carbon_fraction = stream.carbonfrac
+
+        self._node_from = node_from
+        self._node_to = node_to
+
+        self.source = node_model
+
 
 
 class ElectricityLink(Link):
     
-    def __init__(self, uid):
+    def __init__(self, uid, cluster):
         self.energy
-        super().__init__(uid)
+        super().__init__(uid, cluster)
