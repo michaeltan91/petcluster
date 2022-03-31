@@ -1,5 +1,4 @@
-from warnings import warn
-
+'''Contains the supporting methods for retrieving aspen data'''
 from .aspendata import Process
 
 def load_aspen_data(aspen_file, process_data, component_list):
@@ -37,7 +36,7 @@ def load_aspen_data(aspen_file, process_data, component_list):
         block = gas['block']
         gas_stream_id = gas['ng_stream']
         aspen_data.add_manual_natural_gas(block, gas_stream_id)
-    
+
     aspen_data.load_process_data()
     aspen_data.calculate_carbon_fraction(component_list)
     aspen_data.close_aspen()
