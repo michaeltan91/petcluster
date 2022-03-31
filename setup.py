@@ -10,6 +10,7 @@ setup(name='petcluster',
           'xlrd',
           'pyexcel',
           'pandas',
-          'numpy'
+          'numpy',
+          'epynet'
       ],
       zip_safe=False)
