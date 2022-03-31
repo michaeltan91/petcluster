@@ -11,6 +11,8 @@ setup(name='petcluster',
           'pyexcel',
           'pandas',
           'numpy',
-          'epynet'
+          'epynet',
+          'plotly',
+          'py3plex'
       ],
       zip_safe=False)
