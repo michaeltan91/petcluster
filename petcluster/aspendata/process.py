@@ -1,16 +1,16 @@
-import warnings
+'''Contains the data structure and retrieval from the Aspen Plus simulations'''
+from warnings import warn
 import pandas as pd
 import numpy as np
-from aspenauto import Model, ObjectCollection
-from warnings import warn
+from aspenauto import Model
 
 from .stream import Stream
 from .processdatasheet import ProcessDataSheet
-from .utility import Manual_Utility, Natural_Gas_Manual, Steam_Gen_Manual, Steam_Stripping
+from .utility import ManualUtility, NaturalGasManual, SteamGenManual, SteamStripping
 
 
 class Process(object):
-
+    '''Main process class containing the data structure'''
     def __init__(self, aspen_file):
         self.energy = {}
         self.material_feed = {}
@@ -26,29 +26,29 @@ class Process(object):
     def add_manual_steam_gen(self, steam_type, block, heatstream, steam_stream_id):
         '''Add a manual steam generation utility'''
         # Retrieve the heatstream and material stream from the aspen simulation
-        hs = self.aspen.heat_streams[heatstream]
-        ms =self.aspen.streams[steam_stream_id]
-        
-        # Assign the steam generation utility to the requested block, 
-        steam = Steam_Gen_Manual(block, hs, ms )
-        try: 
+        heat_stream = self.aspen.heat_streams[heatstream]
+        mass_stream =self.aspen.streams[steam_stream_id]
+
+        # Assign the steam generation utility to the requested block,
+        steam = SteamGenManual(block, heat_stream, mass_stream )
+        try:
             self.aspen.utilities[steam_type].blocks[block] = steam
             self.aspen.steam_gen[steam_type].blocks[block] = steam
-        
+
         # When the requested utility is not yet defined, it is created
         except KeyError:
-            utility = Manual_Utility()
-            self.aspen.utilities[steam_type] = utility 
+            utility = ManualUtility()
+            self.aspen.utilities[steam_type] = utility
             self.aspen.steam_gen[steam_type] = utility
             self.aspen.utilities[steam_type].blocks[block] = steam
             self.aspen.steam_gen[steam_type].blocks[block] = steam
-            warn("Created utility",steam_type,"if not intended check syntax")
+            warn("Created utility %s if not intended check syntax" %(steam_type))
 
-    
+
     def add_manual_steam_stripping(self, steam_type, block, stream_id):
-        
+        '''Add the thermal energy of steam stripping manually to the energy balance'''
         steam_stream = self.aspen.streams[stream_id]
-        steam_stripping = Steam_Stripping(block, steam_stream, steam_type)
+        steam_stripping = SteamStripping(block, steam_stream, steam_type)
 
         try:
             self.aspen.utilities[steam_type].blocks[block] = steam_stripping
@@ -56,12 +56,12 @@ class Process(object):
 
         # If the requested utility is not yet defined, it is created
         except KeyError:
-            utility = Manual_Utility()
+            utility = ManualUtility()
             self.aspen.utilities[steam_type] = utility
             self.aspen.steam[steam_type] = utility
             self.aspen.utilities[steam_type].blocks[block] = steam_stripping
             self.aspen.steam[steam_type].blocks[block] = steam_stripping
-            warn("Created utility",steam_type,"if not intended check syntax")
+            warn("Created utility %s if not intended check syntax" %(steam_type))
 
 
     def add_manual_natural_gas(self, block, ng_stream_id):
@@ -70,14 +70,14 @@ class Process(object):
         # Retrieve the natural gas material stream from the aspen simulation
         ng_stream = self.aspen.streams[ng_stream_id]
 
-        natural_gas = Natural_Gas_Manual(block, ng_stream)
+        natural_gas = NaturalGasManual(block, ng_stream)
         try:
             self.aspen.utilities['NG'].blocks[block] = natural_gas
             self.aspen.natural_gas['NG'].blocks[block] = natural_gas
-        
+
         # If the requested utility is not yet defined, it is created
         except KeyError:
-            utility = Manual_Utility()
+            utility = ManualUtility()
             self.aspen.utilities['NG'] = utility
             self.aspen.natural_gas['NG'] = utility
             self.aspen.utilities['NG'].blocks[block] = natural_gas
@@ -99,12 +99,12 @@ class Process(object):
 
         # Fill lists for material feed, product and waste streams
         for stream in self.aspen.material_streams:
-            if stream.type is "Feed":
+            if stream.type == "Feed":
                 feed_streams.append(stream.name)
-            elif stream.type is "Product":
+            elif stream.type == "Product":
                 product_streams.append(stream.name)
                 outlet_streams.append(stream.name)
-            elif stream.type is "Waste":
+            elif stream.type == "Waste":
                 waste_streams.append(stream.name)
                 outlet_streams.append(stream.name)
 
@@ -125,7 +125,8 @@ class Process(object):
             self.material_all[stream_id] = stream
 
         # Make a list of the standard steam definitions of the VICI project
-        steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN'], ['HPS','HPS-GEN'], ['HHPS','HHPS-GEN']]
+        steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN'],
+        ['HPS','HPS-GEN'], ['HHPS','HHPS-GEN']]
 
         # Load the total steam duty per type for the process
         for steam in steam_types:
@@ -147,7 +148,7 @@ class Process(object):
 
         # Load the total electricity duty being utilized by the process
         temp = 0
-        try:   
+        try:
             for block in self.aspen.electricity['ELECTRIC'].blocks:
                 temp += block.usage
             self.energy['Electricity'] = temp* 8000 * 1E-6 * 3.6
@@ -162,7 +163,7 @@ class Process(object):
             self.energy['Cooling water'] = temp * 8000 * 1E-6
         except KeyError:
             pass
-        
+
         # Load the total natural gas duty being utilized by the process
         temp = 0
         try:
@@ -180,11 +181,11 @@ class Process(object):
             self.energy['Chilled Water'] = temp * 8000 * 1E-6
         except KeyError:
             pass
-        
+
         # Load refrigerants
-        refrigerant_types = ['R134a', 'R717', 'R-410a', 'R41', 'R1150', 'R740']
+        refrigerant_types = ['R134A', 'R717', 'R-410A', 'R41', 'R1150', 'R740']
         for refrig in refrigerant_types:
-            temp = 0 
+            temp = 0
             try:
                 for block in self.aspen.refrigerant[refrig].blocks:
                     temp += block.duty
@@ -192,49 +193,49 @@ class Process(object):
             except KeyError:
                 pass
 
-        
-        header = pd.MultiIndex.from_product([outlet_streams,['m_out','massflow','X']],names=['stream', 'type'])
-        df = pd.DataFrame(np.zeros([0,len(header)]),  
+
+        header = pd.MultiIndex.from_product([outlet_streams,['m_out','massflow','X']],
+        names=['stream', 'type'])
+        data_frame = pd.DataFrame(np.zeros([0,len(header)]),
                         columns=header)
 
         for name in outlet_streams:
             count = 0
             for comp, value in self.aspen.streams[name].massfrac.items():
                 if value > 0.001:
-                    df.loc[count,(name,'m_out')] = comp
-                    df.loc[count,(name,'massflow')] = value * self.aspen.streams[name].massflow 
+                    data_frame.loc[count,(name,'m_out')] = comp
+                    data_frame.loc[count,(name,'massflow')] = \
+                    value * self.aspen.streams[name].massflow
                     count += 1
-        self.superstructure = df
-        
+        self.superstructure = data_frame
 
 
     def report(self, excel_file):
-        
+        '''Reports the mass and energy balance of the process into an excel  sheet'''
         pds = ProcessDataSheet()
-        pds.Print_Mass(self.aspen.streams, excel_file)
-        pds.Print_Energy(self.aspen.natural_gas, self.aspen.coolwater, self.aspen.electricity,
+        pds.print_mass(self.aspen.streams, excel_file)
+        pds.print_energy(self.aspen.natural_gas, self.aspen.coolwater, self.aspen.electricity,
         self.aspen.refrigerant, self.aspen.steam, self.aspen.steam_gen, excel_file)
 
 
     def close_aspen(self):
         """Closes the Aspen model and shuts down the Engine"""
         self.aspen.close()
-        del(self.aspen)
-
+        del self.aspen
 
 
     def e_factor(self):
-        """Calculate the environmental factor a process, defined as the mass of waste (excluding water)
-        divided by the total mass of product"""
+        """Calculate the environmental factor a process, defined as the mass of waste
+        (excluding water) divided by the total mass of product"""
         product_mass = 0
         waste_mass = 0
 
         # Determine the total product mass
-        for name, stream in self.material_feed.items():
+        for _, stream in self.material_feed.items():
             product_mass += stream.massflow
-        
+
         # Determine the total waste mass
-        for name, stream in self.material_waste.items():
+        for _, stream in self.material_waste.items():
             waste_mass += stream.massflow
             # Exclude the contribution of water if part of the waste stream
             try:
@@ -246,63 +247,77 @@ class Process(object):
 
 
     def GWP(self):
-        
+        '''Returns the Global Warming Potential of the process'''
         return 1
-    
+
 
     def calculate_carbon_fraction(self, component_list):
         """Calculate the carbon fraction of all the material feed, product and waste streams"""
         if isinstance(component_list, pd.DataFrame) is False:
             component_list = pd.read_excel(component_list, index_col=1)
 
-        for name, stream in self.material_feed.items():
+        feed, product, waste = 0, 0, 0
+        for _, stream in self.material_feed.items():
             stream.calc_carbon_frac(component_list)
+            feed += stream.massflow * stream.carbonfrac
 
-        for name, stream in self.material_product.items():
+        for _, stream in self.material_product.items():
             stream.calc_carbon_frac(component_list)
+            product += stream.massflow * stream.carbonfrac
 
-        for name, stream in self.material_waste.items():
+        for _, stream in self.material_waste.items():
             stream.calc_carbon_frac(component_list)
+            waste += stream.massflow * stream.carbonfrac
 
-        
+        try:
+            diff = abs(feed-product-waste)/feed
+            if diff >= 0.0001:
+                print('carbon leak')
+        except ZeroDivisionError:
+            pass
 
 
     def carbon_intensity(self, component_list):
+        '''Returns the carbon intensity of the process, the ratio of kg of carbon in the product
+        and the kg of carbon in the feed'''
         carbon_feed, carbon_waste, carbon_product = 0, 0, 0
-        for name, stream in self.material_feed.items():
+        for _, stream in self.material_feed.items():
             temp = 0
-             
+
             for component, value in stream.molefrac.items():
-                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
+                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * \
+                12.01 *8000*1E-6
             stream.carbonfrac = temp/stream.massflow
             carbon_feed += temp
 
-        for name, stream in self.material_product.items():
-            temp = 0 
+        for _, stream in self.material_product.items():
+            temp = 0
             for component, value in stream.molefrac.items():
-                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
+                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * \
+                12.01 *8000*1E-6
             stream.carbonfrac = temp/stream.massflow
             carbon_product += temp
 
-        for name, stream in self.material_waste.items():
-            temp = 0 
+        for _, stream in self.material_waste.items():
+            temp = 0
             for component, value in stream.molefrac.items():
-                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * 12.01 *8000*1E-6
+                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * \
+                12.01 *8000*1E-6
             stream.carbonfrac = temp/stream.massflow
             carbon_waste += temp
-        
+
         balance = carbon_feed - carbon_product - carbon_waste
         if balance/carbon_feed > 0.0001:
-            warnings.warn("Carbon leak in process")
+            warn("Carbon leak in process")
         else:
             return min(carbon_product/carbon_feed, 1)
 
 
     def process_water(self):
-
+        '''Returns the total amount of water used in the process excluding cooling water'''
         water = 0
         # Determine the total amount of water used in the process
-        for name, stream in self.material_feed.items():
+        for _, stream in self.material_feed.items():
             try:
                 water += stream.massfrac['H2O'] * stream.massflow
             except KeyError:
