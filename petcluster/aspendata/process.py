@@ -42,7 +42,7 @@ class Process(object):
             self.aspen.steam_gen[steam_type] = utility
             self.aspen.utilities[steam_type].blocks[block] = steam
             self.aspen.steam_gen[steam_type].blocks[block] = steam
-            warn("Created utility %s if not intended check syntax" %(steam_type))
+            warn(f"Created utility {steam_type} if not intended check syntax")
 
 
     def add_manual_steam_stripping(self, steam_type, block, stream_id):
@@ -61,7 +61,7 @@ class Process(object):
             self.aspen.steam[steam_type] = utility
             self.aspen.utilities[steam_type].blocks[block] = steam_stripping
             self.aspen.steam[steam_type].blocks[block] = steam_stripping
-            warn("Created utility %s if not intended check syntax" %(steam_type))
+            warn(f"Created utility {steam_type} if not intended check syntax")
 
 
     def add_manual_natural_gas(self, block, ng_stream_id):
@@ -82,7 +82,7 @@ class Process(object):
             self.aspen.natural_gas['NG'] = utility
             self.aspen.utilities['NG'].blocks[block] = natural_gas
             self.aspen.natural_gas['NG'].blocks[block] = natural_gas
-            warn("Created utility NG if not intended check syntax")
+            warn(f"Created utility NG if not intended check syntax")
 
 
     def load_process_data(self):
@@ -251,22 +251,22 @@ class Process(object):
         return 1
 
 
-    def calculate_carbon_fraction(self, component_list):
+    def calculate_carbon_fraction(self, component_dict):
         """Calculate the carbon fraction of all the material feed, product and waste streams"""
-        if isinstance(component_list, pd.DataFrame) is False:
-            component_list = pd.read_excel(component_list, index_col=1)
+        if isinstance(component_dict, pd.DataFrame) is False:
+            component_dict = pd.read_excel(component_dict, index_col=1)
 
         feed, product, waste = 0, 0, 0
         for _, stream in self.material_feed.items():
-            stream.calc_carbon_frac(component_list)
+            stream.calc_carbon_frac(component_dict)
             feed += stream.massflow * stream.carbonfrac
 
         for _, stream in self.material_product.items():
-            stream.calc_carbon_frac(component_list)
+            stream.calc_carbon_frac(component_dict)
             product += stream.massflow * stream.carbonfrac
 
         for _, stream in self.material_waste.items():
-            stream.calc_carbon_frac(component_list)
+            stream.calc_carbon_frac(component_dict)
             waste += stream.massflow * stream.carbonfrac
 
         try:
@@ -277,7 +277,7 @@ class Process(object):
             pass
 
 
-    def carbon_intensity(self, component_list):
+    def carbon_intensity(self, component_dict):
         '''Returns the carbon intensity of the process, the ratio of kg of carbon in the product
         and the kg of carbon in the feed'''
         carbon_feed, carbon_waste, carbon_product = 0, 0, 0
@@ -285,7 +285,7 @@ class Process(object):
             temp = 0
 
             for component, value in stream.molefrac.items():
-                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * \
+                temp += stream.moleflow * value * component_dict['Carbon Atoms'][component] * \
                 12.01 *8000*1E-6
             stream.carbonfrac = temp/stream.massflow
             carbon_feed += temp
@@ -293,7 +293,7 @@ class Process(object):
         for _, stream in self.material_product.items():
             temp = 0
             for component, value in stream.molefrac.items():
-                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * \
+                temp += stream.moleflow * value * component_dict['Carbon Atoms'][component] * \
                 12.01 *8000*1E-6
             stream.carbonfrac = temp/stream.massflow
             carbon_product += temp
@@ -301,7 +301,7 @@ class Process(object):
         for _, stream in self.material_waste.items():
             temp = 0
             for component, value in stream.molefrac.items():
-                temp += stream.moleflow * value * component_list['Carbon Atoms'][component] * \
+                temp += stream.moleflow * value * component_dict['Carbon Atoms'][component] * \
                 12.01 *8000*1E-6
             stream.carbonfrac = temp/stream.massflow
             carbon_waste += temp
