@@ -21,8 +21,8 @@ def load_aspen_data(aspen_file, process_data, component_dict):
         steam_type = steam['steam_type']
         block = steam['block']
         heatstream = steam['heatstream']
-        steam_steam = steam['steam_stream']
-        aspen_data.add_manual_steam_gen(steam_type, block, heatstream, steam_steam)
+        steam_stream = steam['steam_stream']
+        aspen_data.add_manual_steam_gen(steam_type, block, heatstream, steam_stream)
 
     # Add manual steam stripping entry to process for each occurence in the process data
     for steam in process_data['manual_steam_stripping']:
@@ -36,6 +36,7 @@ def load_aspen_data(aspen_file, process_data, component_dict):
         block = gas['block']
         gas_stream_id = gas['ng_stream']
         aspen_data.add_manual_natural_gas(block, gas_stream_id)
+
 
     aspen_data.load_process_data()
     aspen_data.calculate_carbon_fraction(component_dict)
