@@ -8,6 +8,7 @@ import pandas as pd
 
 from aspenauto import Model
 from py3plex.core import multinet
+from py3plex.visualization.multilayer import draw_multiedges, draw_multilayer_default, hairball_plot, plt
 
 from . import supporting
 from .performance import Performance
@@ -16,7 +17,7 @@ class Multiplex(object):
     '''Main petcluster class'''
     def __init__(self):
 
-        self.multiplex = multinet.multi_layer_network(network_type='multiplex')
+        self.multiplex = multinet.multi_layer_network(network_type='multiplex',directed='True')
         self.nodes = {}
         self.process_nodes = {}
         self.background_nodes = {}
@@ -25,7 +26,7 @@ class Multiplex(object):
         self.component_dict = {}
         self._table = {}
         self.link_list = []
-        self.performance = Performance(self.multiplex, self.nodes)
+        self.performance = Performance(self.multiplex, self.nodes, self.process_nodes)
 
     def load_network_aspen(self):
         """Load the cluster using the aspen models, static table and 'process_data.json'"""
@@ -115,8 +116,8 @@ class Multiplex(object):
                         #
                         link_list.append(self.resource_link(stream, link_data))
                 except KeyError:
-                    warnings.warn(f"Process {uid} not defined in the static table. \
-                        Check it is defined correctly")
+                    warnings.warn(f"Stream {stream_id} in process {uid} \
+                    not defined in the static table. Check it is defined correctly")
 
                 # Link property data is retrieved for the outgoing links.
                 try:
@@ -128,7 +129,7 @@ class Multiplex(object):
                         #
                         link_list.append(self.resource_link(stream, link_data))
                 except KeyError:
-                    warnings.warn(f"process {uid} \
+                    warnings.warn(f"Stream {stream_id} in process {uid} \
                     not defined in the static table. Check it is defined correctly")
 
         self.link_list = link_list
@@ -157,16 +158,31 @@ class Multiplex(object):
                 if abs(link1['temperature']-link2['temperature'])/link1['temperature'] < 0.0001 and\
                 abs(link1['pressure']-link2['pressure'])/link1['pressure'] < 0.0001:
                     duplicate_list.append(link2)
+
+                else:
+                    print(link1['source'],link1['target'],'Flow rates match, but temperature or pressure dont')
         return duplicate_list
 
 
     def assign_layers_aspen(self, link_list):
         '''Assign predefined layers to each link in the link_list'''
+
+        for link in link_list:
+            if link['source'] not in self.process_nodes.keys():
+                link['source_type'] = 'IN'
+                link['target_type'] = 'IN'
+            
+            if link['target'] not in self.process_nodes.keys():
+                link['source_type'] = 'OUT'
+                link['target_type'] = 'OUT'
+
+        """
         for link in link_list:
             for component, frac in link['mass_fraction'].items():
                 if frac >= 0.6:
                     link['source_type'] = self.component_dict['Subcluster related'][component]
                     link['target_type'] = self.component_dict['Subcluster related'][component]
+        """
 
 
     def resource_link(self, stream, link_data):
@@ -188,7 +204,10 @@ class Multiplex(object):
             "mole_fraction": stream.molefrac,
             "pressure": stream.pressure,
             "temperature": stream.temperature,
-            "carbon_content": stream.carbonfrac
+            "carbon_content": stream.carbonfrac,
+            "liquid_fraction": stream.liquid_frac,
+            "solid_fraction": stream.solid_frac,
+            "vapor_fraction": stream.vapor_frac
         }
         return link_dict
 
@@ -201,6 +220,8 @@ class Multiplex(object):
             "type": 1,
             "name": process_data['process_name'],
             "energy_consumption": aspendata.energy,
+            "steam_usage": aspendata.steam_usage,
+            "auxiliary_materials": aspendata.material_auxiliary,
             "area_footprint": process_data['footprint'],
             "equipment_cost": process_data['equipment_cost'],
             "harbor_access": 1,
@@ -264,21 +285,21 @@ class Multiplex(object):
 
                 for stream in model.material_streams:
                     # Load and store the feed streams in the static table
-                    if stream.type is "Feed":
+                    if stream.type == "Feed":
                         data_frame.loc[row, 'Process ID'] = uid
                         data_frame.loc[row, 'Process Name'] = process_name
                         data_frame.loc[row, 'Stream in'] = stream.name
                         data_frame.loc[row, 'Amount in'] = stream.massflow
                         row += 1
                     # Load and store the product streams in the static table
-                    elif stream.type is "Product":
+                    elif stream.type == "Product":
                         data_frame.loc[prod_row, 'Process ID'] = uid
                         data_frame.loc[prod_row, 'Process Name'] = process_name
                         data_frame.loc[prod_row, 'Stream out'] = stream.name
                         data_frame.loc[prod_row, 'Amount out'] = stream.massflow
                         prod_row += 1
                         # Load and store the waste streams in the static table
-                    elif stream.type is "Waste":
+                    elif stream.type == "Waste":
                         data_frame.loc[prod_row, 'Process ID'] = uid
                         data_frame.loc[prod_row, 'Process Name'] = process_name
                         data_frame.loc[prod_row, 'Stream out'] = stream.name
@@ -334,20 +355,20 @@ class Multiplex(object):
 
         for stream in model.material_streams:
             # Load and store the feed streams in the static table
-            if stream.type is "Feed":
+            if stream.type == "Feed":
                 data_frame.loc[row, 'Process ID'] = uid
                 data_frame.loc[row, 'Process Name'] = process_name
                 data_frame.loc[row, 'Stream in'] = stream.name
                 data_frame.loc[row, 'Amount in'] = stream.massflow
                 row += 1
-            elif stream.type is "Product":
+            elif stream.type == "Product":
                 # Load and store the product streams in the static table
                 data_frame.loc[prod_row, 'Process ID'] = uid
                 data_frame.loc[prod_row, 'Process Name'] = process_name
                 data_frame.loc[prod_row, 'Stream out'] = stream.name
                 data_frame.loc[prod_row, 'Amount out'] = stream.massflow
                 prod_row += 1
-            elif stream.type is "Waste":
+            elif stream.type == "Waste":
                 # Load and store the waste streams in the static table
                 data_frame.loc[prod_row, 'Process ID'] = uid
                 data_frame.loc[prod_row, 'Process Name'] = process_name
@@ -386,3 +407,24 @@ class Multiplex(object):
 
         self.link_list = data['link_list']
 
+
+    def  test_visualize(self):
+
+        network_labels, graphs, multilinks = self.multiplex.get_layers()
+
+        draw_multilayer_default(graphs,
+                        display=False,
+                        background_shape="circle",
+                        labels=network_labels,
+                        node_size=1)
+
+        for edge_type, edges in multilinks.items():
+            draw_multiedges(graphs,
+                    edges,
+                    alphachannel=0.2,
+                    linepoints="--",
+                    linecolor="black",
+                    curve_height=2,
+                    linmod="upper",
+                    linewidth=0.4)
+        plt.show()
