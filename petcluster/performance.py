@@ -1,14 +1,16 @@
 import plotly.graph_objects as go
 import numpy as np
 
+from collections import Counter
+
 class Performance(object):
 
 
-    def __init__(self, multiplex, nodes):
+    def __init__(self, multiplex, nodes, process_nodes):
 
         self.multiplex = multiplex
         self.nodes = nodes
-
+        self.process_nodes = process_nodes
 
     def carbon(self, process_list = "", cutoff = 0.1):
 
@@ -561,8 +563,7 @@ class Performance(object):
         fig.show()
 
 
-    def process_energy(self):
-
+    def process_energy(self, process, ignore_list=''):
 
         label_dict = {
         'LLPS': 'Very low pressure steam',
@@ -572,7 +573,9 @@ class Performance(object):
         'HHPS': 'Very high pressure steam',
         'Electricity': 'Electricity',
         'NG': 'Natural gas',
-        'R717': 'R717'
+        'R134A': 'R134A',
+        'R717': 'R717',
+        'Cooling water': 'Cooling water'
         }
 
         color_dict = {
@@ -583,6 +586,86 @@ class Performance(object):
             'HHPS': 'darkred',
             'Electricity': 'orange',
             'NG':   'yellowgreen',
-            'R717': ''
-
+            'R134A': 'pink',
+            'R717': 'black',
+            'Cooling water': 'lightblue'
         }
+
+        energy = self.nodes[process]['energy_consumption']
+        values=[round(x,0) for name,x in energy.items() if name not in ignore_list and x != 0]
+        utilities=[name for name,x in energy.items() if name not in ignore_list and  x != 0]
+
+        labels = [label_dict[name] for name in utilities]
+        colors = [color_dict[name] for name in utilities]
+        process_name = self.nodes[process]['name']
+
+        fig = go.Figure(data=[go.Pie(labels=labels,
+                             values=values)])
+        fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=30,
+                        marker=dict(colors=colors, line=dict(color='#000000', width=2)))
+        fig.update_layout(title_text = f'{process}. {process_name}<br>energy consumption in TJ/year',
+                        autosize=False,
+                        width=1000,
+                        height=1000,
+                        font=dict(size=30),
+                        legend_font=dict(size=35))
+
+        config = {
+        'toImageButtonOptions': { 'height': None, 'width': None, }
+        }
+        fig.show(config=config)
+
+
+    def cluster_energy(self, ignore_list=''):
+
+        label_dict = {
+        'LLPS': 'Very low pressure steam',
+        'LPS' : 'Low pressure steam',
+        'MPS' : 'Medium pressure steam',
+        'HPS' : 'High pressure steam',
+        'HHPS': 'Very high pressure steam',
+        'Electricity': 'Electricity',
+        'NG': 'Natural gas',
+        'R134A': 'R134A',
+        'R717': 'R717',
+        'Cooling water': 'Cooling water'
+        }
+
+        color_dict = {
+            'LLPS': 'bluegreen',
+            'LPS':  'blue',
+            'MPS':  'blueviolet',
+            'HPS':  'red',
+            'HHPS': 'darkred',
+            'Electricity': 'orange',
+            'NG':   'yellowgreen',
+            'R134A': 'pink',
+            'R717': 'black',
+            'Cooling water': 'lightblue'
+        }
+
+        energy_total = Counter({})
+        for node in self.process_nodes.values():
+            energy_total += Counter(node['energy_consumption'])
+
+        values=[round(x,0) for name,x in energy_total.items() if name not in ignore_list and x != 0]
+        utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
+
+        labels = [label_dict[name] for name in utilities]
+        colors = [color_dict[name] for name in utilities]
+
+        fig = go.Figure(data=[go.Pie(labels=labels,
+                             values=values)])
+        fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=30,
+                        marker=dict(colors=colors, line=dict(color='#000000', width=2)))
+        fig.update_layout(title_text = f'Cluster<br>energy consumption in TJ/year',
+                        autosize=False,
+                        width=1000,
+                        height=1000,
+                        font=dict(size=30),
+                        legend_font=dict(size=35))
+
+        config = {
+        'toImageButtonOptions': { 'height': None, 'width': None, }
+        }
+        fig.show(config=config)
