@@ -36,12 +36,18 @@ class Stream(object):
         self.pressure = stream.pressure
         self.temperature = stream.temperature
         self.carbonfrac = 0
+        self.liquid_frac = stream.lfrac
+        self.solid_frac = stream.sfrac
+        self.vapor_frac = stream.vfrac
 
 
     def calc_carbon_frac(self, component_dict):
         '''Calculate the carbon fraction on the stream by mass'''
         temp = 0
         for component, value in self.molefrac.items():
-            temp += self.moleflow * value * component_dict['Carbon Atoms'][component] * \
-            12.01100000 *8000*1E-6
+            try:
+                temp += self.moleflow * value * component_dict['Carbon Atoms'][component] * \
+                12.01100000 *8000*1E-6
+            except KeyError:
+                print(component)
         self.carbonfrac = temp/self.massflow
