@@ -1,5 +1,6 @@
 '''Contains the main structure and methods'''
 import os
+from shutil import ExecError
 import warnings
 import json
 from itertools import combinations
@@ -142,7 +143,11 @@ class Multiplex(object):
             duplicate_list = self.check_duplicates(link1,link2,duplicate_list)
         if len(duplicate_list) >= 1:
             for duplicate in duplicate_list:
-                link_list.remove(duplicate)
+                try:
+                    link_list.remove(duplicate)
+                except ValueError as error:
+                    warnings.warn(f'{duplicate} is not part of the list of links')
+
 
 
     def check_duplicates(self, link1, link2, duplicate_list):
@@ -162,6 +167,31 @@ class Multiplex(object):
                 else:
                     print(link1['source'],link1['target'],'Flow rates match, but temperature or pressure dont')
         return duplicate_list
+
+
+    def process_auxiliary(self, aspendata):
+        '''Retrieves the auxiliary stream data from the aspen model and returns them in a dictionary'''
+        aux_dict = {}
+        for aux_type, aux_values in aspendata.material_auxiliary.items():
+            aux_dict[aux_type] = {}
+            for stream_name, stream in aux_values.items():
+                try:
+                    aux_dict[aux_type][stream_name] = {
+                    "mass_flow_rate": stream.massflow,
+                    "mole_flow_rate": stream.moleflow,
+                    "volume_flow_rate": stream.volflow,
+                    "mass_fraction": stream.massfrac,
+                    "mole_fraction": stream.molefrac,
+                    "pressure": stream.pressure,
+                    "temperature": stream.temperature,
+                    "carbon_content": stream.carbonfrac,
+                    "liquid_fraction": stream.liquid_frac,
+                    "solid_fraction": stream.solid_frac,
+                    "vapor_fraction": stream.vapor_frac
+                    } 
+                except KeyError:
+                    pass
+        return aux_dict
 
 
     def assign_layers_aspen(self, link_list):
@@ -187,6 +217,14 @@ class Multiplex(object):
 
     def resource_link(self, stream, link_data):
         '''Returns a dictionary containing the link data in the format required for py3plex'''
+
+        try:
+            moleflow = link_data[2] / stream.massflow * stream.moleflow
+            volflow = link_data[2] / stream.massflow * stream.volflow
+        except ZeroDivisionError:
+            moleflow  = 0
+            volflow = 0
+
         link_dict = {
             "source": link_data[0],        # Source node
             "source_type": 1,   # Source node layer
@@ -198,8 +236,8 @@ class Multiplex(object):
             "target_stream": link_data[4],
 
             "mass_flow_rate": link_data[2],
-            "mole_flow_rate": link_data[2] / stream.massflow * stream.moleflow,
-            "volume_flow_rate": link_data[2] / stream.massflow * stream.volflow,
+            "mole_flow_rate": moleflow,
+            "volume_flow_rate": volflow,
             "mass_fraction": stream.massfrac,
             "mole_fraction": stream.molefrac,
             "pressure": stream.pressure,
@@ -215,13 +253,14 @@ class Multiplex(object):
     def process_node(self, uid, aspendata, process_data):
         '''Returns a dictionary containing the process node data in the
         format required for py3plex'''
+        aux_data = self.process_auxiliary(aspendata)
         node_dict = {
             "source": uid,    # Process ID
             "type": 1,
             "name": process_data['process_name'],
             "energy_consumption": aspendata.energy,
             "steam_usage": aspendata.steam_usage,
-            "auxiliary_materials": aspendata.material_auxiliary,
+            "auxiliary_materials": aux_data,
             "area_footprint": process_data['footprint'],
             "equipment_cost": process_data['equipment_cost'],
             "harbor_access": 1,
@@ -341,6 +380,7 @@ class Multiplex(object):
 
         # Retrieve the process ID and process name from the file name
         uid = aspen_file.split(sep,1)[0]
+        uid = uid.strip('.')
         ttt = aspen_file.split(sep,1)[1]
         process_name = ttt.split('.bkp',1)[0]
 
