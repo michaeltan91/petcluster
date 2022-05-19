@@ -212,7 +212,7 @@ class Process(object):
         try:
             for block in self.aspen.refrigerant['CHILLED'].blocks:
                 temp += block.duty
-            self.energy['Chilled Water'] = temp * 8000 * 1E-6
+            self.energy['Chilled water'] = temp * 8000 * 1E-6
         except KeyError:
             pass
 
