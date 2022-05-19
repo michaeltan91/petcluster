@@ -1,5 +1,5 @@
 '''Contains the data structure and retrieval for the stream data from the Aspen Plus simulation'''
-
+import warnings
 
 class Stream(object):
     '''The main stream class for retrieving Aspen Plus stream data'''
@@ -49,5 +49,8 @@ class Stream(object):
                 temp += self.moleflow * value * component_dict['Carbon Atoms'][component] * \
                 12.01100000 *8000*1E-6
             except KeyError:
-                print(component)
-        self.carbonfrac = temp/self.massflow
+                warnings.warn(f"Component {component} is not defined in the list of components")
+        try: 
+            self.carbonfrac = temp/self.massflow
+        except ZeroDivisionError:
+            self.carbonfrac = 0
