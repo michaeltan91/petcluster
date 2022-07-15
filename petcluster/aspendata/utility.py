@@ -60,3 +60,19 @@ class NaturalGasManual(object):
         # of the natural gas mixture at 15C.
         self.duty = self.usage * 1E6 / 8000 * LHV * 1E-3
         
+
+
+class ElectricityManual(object):
+    '''Manual electricity utility class'''
+
+    def __init__(self, uid, work_stream):
+        self.uid = uid
+        self.usage = work_stream.power
+
+
+class HighTemperatureHeat(object):
+
+    def __init__(self, uid, heatstream):
+        self.uid = uid
+        self.duty = heatstream.duty
+

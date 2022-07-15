@@ -31,12 +31,24 @@ def load_aspen_data(aspen_file, process_data, component_dict):
         stream_id = steam['stream_id']
         aspen_data.add_manual_steam_stripping(steam_type, block, stream_id)
 
-    # Add manual natural gas entry to the process for each occurencen in the process data
+    # Add manual natural gas entry to the process for each occurence in the process data
     for gas in process_data['manual_natural_gas']:
         block = gas['block']
         gas_stream_id = gas['ng_stream']
         aspen_data.add_manual_natural_gas(block, gas_stream_id)
 
+    # Add manual electricity entry to the process for each occurence in the process data
+    for electricity in process_data['manual_electricity']:
+        block = electricity['block']
+        electric_stream_id = electricity['elec_stream']
+        aspen_data.add_manual_electricity(block, electric_stream_id)
+
+    # Add high temperature heat stream for each occurence in the process data
+    for heat in process_data['high_temperature_heat']:
+        block = heat['block']
+        heatstream_id = heat['heat_stream']
+        aspen_data.add_high_temperature_heat(block, heatstream_id)
+    
 
     aspen_data.load_process_data()
     aspen_data.calculate_carbon_fraction(component_dict)
