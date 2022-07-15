@@ -6,6 +6,7 @@ import json
 from itertools import combinations
 import numpy as np
 import pandas as pd
+from openpyxl import load_workbook
 
 from aspenauto import Model
 from py3plex.core import multinet
@@ -27,7 +28,7 @@ class Multiplex(object):
         self.component_dict = {}
         self._table = {}
         self.link_list = []
-        self.performance = Performance(self.multiplex, self.nodes, self.process_nodes)
+        self.performance = Performance(self.multiplex, self.nodes, self.process_nodes, self.component_dict)
 
     def load_network_aspen(self):
         """Load the cluster using the aspen models, static table and 'process_data.json'"""
@@ -134,6 +135,40 @@ class Multiplex(object):
                     not defined in the static table. Check it is defined correctly")
 
         self.link_list = link_list
+
+
+    def collect_steam(self):
+
+        # Make a list of all the files in current directory
+        files = [file_name for file_name in os.listdir('.') if os.path.isfile(file_name)]
+
+        # Load the process data from 'process_data.json'
+        with open("process_data.json", encoding='utf-8') as json_file:
+            process_data = json.load(json_file)
+            json_file.close()
+
+        # Load compoment list from 'Components.xlsx'
+        self.component_dict = pd.read_excel('Components.xlsx', index_col=1)
+
+        sep = ' '
+        for file_name in files:
+            # Only open the Aspen Plus backup files
+            if file_name.endswith('.bkp'):
+                # Retrieve the process uid and process name from the Aspen Plus file name
+                uid = file_name.split(sep,1)[0]       # Retrieve the process uid from the file name
+                uid = uid.replace('.', '')            # Remove the dot present in the uid
+                try:
+                    aspen_data = supporting.load_aspen_data(file_name, process_data[uid],
+                    self.component_dict)
+                except KeyError:
+                    warnings.warn(f"Process {uid} is not defined in the process data input file")
+
+                print(uid)
+                self.nodes[uid] = self.process_node(uid, aspen_data, process_data[uid])
+                self.process_nodes[uid] = self.nodes[uid]
+
+
+
 
 
     def remove_duplicate_links(self, link_list):
@@ -260,9 +295,13 @@ class Multiplex(object):
             "name": process_data['process_name'],
             "energy_consumption": aspendata.energy,
             "steam_usage": aspendata.steam_usage,
+            "energy_use": aspendata.energy_use,
+            "energy_production": aspendata.energy_production,
             "auxiliary_materials": aux_data,
             "area_footprint": process_data['footprint'],
             "equipment_cost": process_data['equipment_cost'],
+            "company": process_data['company'],
+            "site": process_data['site'],
             "harbor_access": 1,
             "process splittable": 1,
             "opex": 1
