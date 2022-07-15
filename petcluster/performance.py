@@ -7,11 +7,12 @@ from collections import Counter
 class Performance(object):
 
 
-    def __init__(self, multiplex, nodes, process_nodes):
+    def __init__(self, multiplex, nodes, process_nodes, component_dict):
 
         self.multiplex = multiplex
         self.nodes = nodes
         self.process_nodes = process_nodes
+        self.component_dict = component_dict
 
 
     def carbon_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
@@ -33,7 +34,7 @@ class Performance(object):
                 carbon_content = stream['carbon_content']*stream['mass_flow_rate']
 
                 if carbon_content >= cutoff and link[0][0] not in ignore_list:
-                    try: 
+                    try:
                         name_source = self.nodes[link[0][0]]['name']
                     except KeyError:
                         name_source = link[0][0]
@@ -42,6 +43,9 @@ class Performance(object):
                         name_target = self.nodes[link[1][0]]['name']
                     except KeyError:
                         name_target = link[1][0]
+                    
+                    if name_target == 'Stack':
+                        name_target = 'Environment'
 
                     if name_source in label and name_target in label:
                         indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
@@ -98,7 +102,7 @@ class Performance(object):
 
                     if carbon_content >= cutoff and link[0][0] not in ignore_list:
                         
-                        try: 
+                        try:
                             name_source = self.nodes[link[0][0]]['name']
                         except KeyError:
                             name_source = link[0][0]
@@ -107,6 +111,9 @@ class Performance(object):
                             name_target = self.nodes[link[1][0]]['name']
                         except KeyError:
                             name_target = link[1][0]
+
+                        if name_target == 'Stack':
+                            name_target = 'Environment'
 
                         if name_source in label and name_target in label:
                             indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
@@ -412,7 +419,7 @@ class Performance(object):
                 data = self.multiplex[link[0]][link[1]][link[2]]
                 carbon_waste += data['carbon_content'] * data['mass_flow_rate']
 
-        return carbon_in, carbon_waste, carbon_prod
+        return carbon_in, carbon_waste, carbon_prod, carbon_prod/carbon_in
 
 
     def water_process(self, process):
@@ -553,14 +560,25 @@ class Performance(object):
         co2_out = 0
 
         for link in self.multiplex.get_edges():
-            if link[0][0] == process:
+            if link[0][0] == process and link[1][0] == 'ENVI':
                 try:
                     stream = self.multiplex[link[0]][link[1]][link[2]]
                     co2 = stream['mass_flow_rate'] * stream['mass_fraction']['CO2']
                     co2_out += co2
                 except KeyError:
                     pass
-                
+
+            elif link[0][0] == process and link[1][0] == 'STCK':
+                stream = self.multiplex[link[0]][link[1]][link[2]]
+                co2 = stream['carbon_content']*stream['mass_flow_rate']/12.011*44.0095
+                co2_out += co2
+                """
+                for component, mole_frac in stream['mass_fraction'].items():
+                    carbon_atom = self.component_dict['Carbon Atoms'][component]
+                    co2 = stream['mole_flow_rate']*mole_frac*carbon_atom*44.009*8000*1E-6
+                    co2_out += co2
+                """
+
         return co2_out
 
 
@@ -576,12 +594,24 @@ class Performance(object):
 
         for link in layers[layer_out].edges:
             data = self.multiplex[link[0]][link[1]][link[2]]
+            """
             try:
                 co2 = data['mass_fraction']['CO2'] * data['mass_flow_rate']
                 co2_out += co2
             except KeyError:
                 co2_out += 0
+            """
             
+            if link[1][0] == 'ENVI:':
+                try:
+                    co2 = data['mass_fraction']['CO2'] * data['mass_flow_rate']
+                    co2_out += co2
+                except KeyError:
+                    co2_out += 0
+            elif link[1][0] == 'STCK':
+                co2 = data['carbon_content']*data['mass_flow_rate']/12.011*44.0095 
+                co2_out += co2
+
         return co2_out
 
 
@@ -589,15 +619,17 @@ class Performance(object):
         '''Retrieves the energy consumption of a process and returns the values as a piechart'''
 
         label_dict = {
-        'LLPS': 'Very low pressure steam',
-        'LPS' : 'Low pressure steam',
-        'MPS' : 'Medium pressure steam',
-        'HPS' : 'High pressure steam',
-        'HHPS': 'Very high pressure steam',
+        'LLPS': 'Very low pressure steam<br>(T=142,7°C)',
+        'LPS' : 'Low pressure steam<br>(T=155,5°C)',
+        'MPS' : 'Medium pressure steam<br>(T=214,9°C)',
+        'HPS' : 'High pressure steam<br>(T=265,2°C)',
+        'HHPS': 'Very high pressure steam>br> (T=311°C)',
         'Electricity': 'Electricity',
         'NG': 'Natural gas',
-        'R134A': 'R134A',
-        'R717': 'R717',
+        'R134A': 'Refrigerant<br>R134A',
+        'R717': 'Refrigerant<br>R717',
+        'R410A': 'Refrigerant<br>R410A',
+        'R41': 'Refrigerant<br>R41',
         'Cooling water': 'Cooling water',
         'Chilled water': 'Chilled water'
         }
@@ -612,8 +644,10 @@ class Performance(object):
             'NG':   'yellowgreen',
             'R134A': 'pink',
             'R717': 'black',
+            'R410A': 'brown',
+            'R41': 'turquoise',
             'Cooling water': 'lightblue',
-            'Chilled water': 'pink'
+            'Chilled water': 'darkblue'
         }
 
         energy = self.nodes[process]['energy_consumption']
@@ -628,12 +662,12 @@ class Performance(object):
                              values=values)])
         fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=30,
                         marker=dict(colors=colors, line=dict(color='#000000', width=2)))
-        fig.update_layout(title_text = f'{process}. {process_name}<br>energy consumption in TJ/year',
+        fig.update_layout(title_text = f'{process}. {process_name}<br>net energy consumption in TJ/year',
                         autosize=False,
                         width=1000,
                         height=1000,
                         font=dict(size=30),
-                        legend_font=dict(size=35))
+                        legend_font=dict(size=25))
 
         config = {
         'toImageButtonOptions': { 'height': None, 'width': None, }
@@ -641,19 +675,21 @@ class Performance(object):
         fig.show(config=config)
 
 
-    def energy_cluster(self, ignore_list=''):
+    def energy_cluster(self, ignore_list='' ,normalized=False):
         '''Retrieves the overall energy consumption of the cluster and presents the values in a piechart'''
 
         label_dict = {
-        'LLPS': 'Very low pressure steam',
-        'LPS' : 'Low pressure steam',
-        'MPS' : 'Medium pressure steam',
-        'HPS' : 'High pressure steam',
-        'HHPS': 'Very high pressure steam',
+        'LLPS': 'Very low pressure steam<br>(T=142,7°C)',
+        'LPS' : 'Low pressure steam<br>(T=155,5°C)',
+        'MPS' : 'Medium pressure steam<br>(T=214,9°C)',
+        'HPS' : 'High pressure steam<br>(T=265,2°C)',
+        'HHPS': 'Very high pressure steam<br>(T=311°C)', 
         'Electricity': 'Electricity',
         'NG': 'Natural gas',
-        'R134A': 'R134A',
-        'R717': 'R717',
+        'R134A': 'Refrigerant<br>R134A',
+        'R717': 'Refrigerant<br>R717',
+        'R410A': 'Refrigerant<br>R410A',
+        'R41': 'Refrigerant<br>R41',
         'Cooling water': 'Cooling water',
         'Chilled water': 'Chilled water'
         }
@@ -668,16 +704,45 @@ class Performance(object):
             'NG':   'yellowgreen',
             'R134A': 'pink',
             'R717': 'black',
+            'R410A': 'brown',
+            'R41': 'turquoise',
             'Cooling water': 'lightblue',
-            'Chilled water': 'pink'
+            'Chilled water': 'darkblue'
         }
-
+        """
         energy_total = Counter({})
         for node in self.process_nodes.values():
             energy_total += Counter(node['energy_consumption'])
 
         values=[round(x,0) for name,x in energy_total.items() if name not in ignore_list and x != 0]
         utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
+        """
+        if normalized is True:
+            carbon_prod = 0
+            tags,layers,_link_dict=  self.multiplex.get_layers()
+            layer_out = tags.index('OUT')
+
+            for link in layers[layer_out].edges:
+                if link[1][0] == 'PROD':
+                    data = self.multiplex[link[0]][link[1]][link[2]]
+                    carbon_prod += data['carbon_content'] * data['mass_flow_rate']
+            
+            energy_total = Counter({})
+            for node in self.process_nodes.values():
+                energy_total += Counter(node['energy_consumption'])
+
+            values=[round(x/carbon_prod,1) for name,x in energy_total.items() if name not in ignore_list and x != 0]
+            utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
+            figure_title = f'Cluster net energy intensity<br>in TJ/ktonne of carbon product'
+
+        else:
+            energy_total = Counter({})
+            for node in self.process_nodes.values():
+                energy_total += Counter(node['energy_consumption'])
+
+            values=[round(x,0) for name,x in energy_total.items() if name not in ignore_list and x != 0]
+            utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
+            figure_title = f'Cluster<br>net energy consumption in TJ/year'
 
         labels = [label_dict[name] for name in utilities]
         colors = [color_dict[name] for name in utilities]
@@ -686,12 +751,12 @@ class Performance(object):
                              values=values)])
         fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=30,
                         marker=dict(colors=colors, line=dict(color='#000000', width=2)))
-        fig.update_layout(title_text = f'Cluster<br>energy consumption in TJ/year',
+        fig.update_layout(title_text = figure_title,
                         autosize=False,
                         width=1000,
                         height=1000,
                         font=dict(size=30),
-                        legend_font=dict(size=35))
+                        legend_font=dict(size=28))
 
         config = {
         'toImageButtonOptions': { 'height': None, 'width': None, }
