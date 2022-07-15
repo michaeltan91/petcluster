@@ -178,7 +178,7 @@ class ProcessDataSheet(object):
         sheet.cell(row=check_start-3, column= 10).value = waste_mass
         self.fill_cell_bold(sheet, check_start-2, 9, 'Balance check')
         sheet.cell(row=check_start-2, column= 10).value = feed_mass - product_mass - waste_mass
-        self.fill_cell_bold(sheet, check_start-1, 9, 'Balance error %')
+        self.fill_cell_bold(sheet, check_start-1, 9, 'Balance error')
         sheet.cell(row=check_start-1, column= 10).value = \
         (feed_mass - product_mass - waste_mass) / feed_mass
 
