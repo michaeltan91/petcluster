@@ -90,6 +90,7 @@ class Multiplex(object):
         # Iterate over all the files
         link_list = []
         sep = ' '
+
         for file_name in files:
             # Only open the Aspen Plus backup files
             if file_name.endswith('.bkp'):
@@ -107,6 +108,7 @@ class Multiplex(object):
                 self.process_nodes[uid] = self.nodes[uid]
 
                 # Create an instance of each link using the static table.
+                """
                 # The link property data is retrieved directly from each respective aspen file.
                 # Starting with the incoming links.
                 try:
@@ -133,7 +135,38 @@ class Multiplex(object):
                 except KeyError:
                     warnings.warn(f"Stream {stream_id} in process {uid} \
                     not defined in the static table. Check it is defined correctly")
+                """
 
+                # The link property data is retrieved directly from each respective aspen file.
+                # Starting with the incoming links.
+                try:
+                    for link_in in self.mapping_in[uid]:
+                        try:
+                            stream_id = link_in[2]
+                            stream = aspen_data.material_all[stream_id]
+                            # Collect basic connection data in a list
+                            link_data = [link_in[1],link_in[0],link_in[3],None, link_in[2]]
+                            #
+                            link_list.append(self.resource_link(stream, link_data))
+                        except KeyError:
+                            warnings.warn(f"Stream {stream_id} in process {uid} \
+                            not defined in the static table. Check it is defined correctly")
+
+                    # Link property data is retrieved for the outgoing links.
+
+                    for link_out in self.mapping_out[uid]:
+                        try:
+                            stream_id = link_out[2]
+                            stream = aspen_data.material_all[stream_id]
+                            # Collect basic connection data in a list
+                            link_data = [link_out[0],link_out[1],link_out[3],link_out[2],None]
+                            #
+                            link_list.append(self.resource_link(stream, link_data))
+                        except KeyError:
+                            warnings.warn(f"Stream {stream_id} in process {uid} \
+                            not defined in the static table. Check it is defined correctly")
+                except KeyError:
+                    warnings.warn(f"Process {uid} is not present in the mapping table")
         self.link_list = link_list
 
 
