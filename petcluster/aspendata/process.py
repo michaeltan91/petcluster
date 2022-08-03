@@ -12,8 +12,6 @@ from .utility import ElectricityManual, ManualUtility, NaturalGasManual, SteamGe
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 
-from petcluster.aspendata import utility
-
 class Process(object):
     '''Main process class containing the data structure'''
     def __init__(self, aspen_file):
