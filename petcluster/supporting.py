@@ -48,7 +48,7 @@ def load_aspen_data(aspen_file, process_data, component_dict):
         block = heat['block']
         heatstream_id = heat['heat_stream']
         aspen_data.add_high_temperature_heat(block, heatstream_id)
-    
+
 
     aspen_data.load_process_data()
     aspen_data.calculate_carbon_fraction(component_dict)
