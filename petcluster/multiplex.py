@@ -201,21 +201,55 @@ class Multiplex(object):
                 self.process_nodes[uid] = self.nodes[uid]
 
 
+    def combine_olefins(self, uid1, uid2):
+
+        process1 = self.process_nodes[uid1]
+        process2 = self.process_nodes[uid2]
+
+        data_type = 'energy_consumption'
+        for key in process1[data_type]:
+            process1[data_type][key] += process2[data_type][key]
+
+        data_type = 'steam_usage'
+        for key in process1[data_type]:
+            process1[data_type][key] += process2[data_type][key] 
+
+        data_type = 'energy_use'
+        for key in process1[data_type]:
+            process1[data_type][key] += process2[data_type][key]
+
+        data_type = 'energy_production'
+        for key in process1[data_type]:
+            process1[data_type][key] += process2[data_type][key]
+
+        data_type = 'auxiliary_materials'
+        for key1, value1 in process1[data_type].items():
+            try:
+                for key2, value2 in process2[data_type][key1].items():
+                    process1[key1][key2] = value2
+            except KeyError:
+                pass
+
+        for link in self.link_list:
+            if link['source'] == uid2:
+                link['source'] = uid1
+
+            if link['target'] == uid2:
+                link['target'] = uid1
 
 
 
-    def remove_duplicate_links(self, link_list):
+    def remove_duplicate_links(self):
         '''Removes duplicate links from the link_list'''
         duplicate_list = []
-        for link1, link2 in combinations(link_list,2):
+        for link1, link2 in combinations(self.link_list,2):
             duplicate_list = self.check_duplicates(link1,link2,duplicate_list)
         if len(duplicate_list) >= 1:
             for duplicate in duplicate_list:
                 try:
-                    link_list.remove(duplicate)
+                    self.link_list.remove(duplicate)
                 except ValueError as error:
                     warnings.warn(f'{duplicate} is not part of the list of links')
-
 
 
     def check_duplicates(self, link1, link2, duplicate_list):
@@ -262,10 +296,10 @@ class Multiplex(object):
         return aux_dict
 
 
-    def assign_layers_aspen(self, link_list):
+    def assign_layers_aspen(self):
         '''Assign predefined layers to each link in the link_list'''
 
-        for link in link_list:
+        for link in self.link_list:
             if link['source'] not in self.process_nodes.keys():
                 link['source_type'] = 'IN'
                 link['target_type'] = 'IN'
@@ -457,7 +491,7 @@ class Multiplex(object):
         process_name = ttt.split('.bkp',1)[0]
 
         # Check whether the process is already part of the static table by comparing the process ID
-        if uid in self.table.values:
+        if uid in self.table['Process ID'].values:
             raise ValueError('The requested process is already part of the static table')
 
         # Open the Aspen Plus simulation using "aspenauto"
