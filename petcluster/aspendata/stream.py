@@ -7,7 +7,9 @@ class Stream(object):
 
         # Collect the mass fractions of the stream of all the components in the simulation
         self.massfrac = stream.massfrac
-
+        pop_list = [comp for comp, value in stream.massfrac.items() if value == 0]
+        for element in pop_list:
+            self.massfrac.pop(element)
         """
         pop_list = [comp for comp, value in stream.massfrac.items() if value < 0.0001 ]
         # Dispose components with a fraction smaller than 0.0001
@@ -19,6 +21,9 @@ class Stream(object):
         """
         # Collect the mole fractions of the stream of the all the components in the simulation
         self.molefrac = stream.molefrac
+        pop_list =  [comp for comp, value in stream.molefrac.items() if value == 0]
+        for element in pop_list:
+            self.molefrac.pop(element)
         """
         pop_list = [comp for comp, value in stream.molefrac.items() if value < 0.0001 ]
         # Dispose components with a fraction smaller than 0.0001
