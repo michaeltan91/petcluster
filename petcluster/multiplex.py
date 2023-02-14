@@ -14,6 +14,7 @@ from py3plex.visualization.multilayer import draw_multiedges, draw_multilayer_de
 
 from . import supporting
 from .performance import Performance
+from .network import Network
 
 class Multiplex(object):
     '''Main petcluster class'''
@@ -27,8 +28,12 @@ class Multiplex(object):
         self.mapping_out = {}
         self.component_dict = {}
         self._table = {}
+        
         self.link_list = []
+        self.energy_link_list = []
+        self.electricity_link_list = []
         self.performance = Performance(self.multiplex, self.nodes, self.process_nodes, self.component_dict)
+        self.network = Network(self.multiplex, self.nodes, self.process_nodes)
 
     def load_network_aspen(self):
         """Load the cluster using the aspen models, static table and 'process_data.json'"""
@@ -201,6 +206,59 @@ class Multiplex(object):
                 self.process_nodes[uid] = self.nodes[uid]
 
 
+    def load_energy(self, agg_steam = True):
+
+        energy_link_list = []
+
+        list_in = self._energy_table.drop(['Company ID','Company','Site ID','Site name', \
+        'Process Name','Notes IN','Steam type OUT','OID','OUT','Notes OUT','Unnamed: 14'], axis='columns')
+        list_in = list_in.dropna()
+        mapping_in = [[x1,x2,x3,x4] for x1, x2, x3, x4 in zip(list_in['Process ID'],
+        list_in['IID'], list_in['Steam type IN'], list_in['IN'])]
+
+        list_out = self._energy_table.drop(['Company ID','Company', 'Site ID', 'Site name', \
+        'Process Name', 'Notes IN', 'Steam type IN', 'IID', 'IN', 'Notes OUT', 'Unnamed: 14'],axis='columns')
+        list_out = list_out.dropna()
+        mapping_out = [[x1,x2,x3,-x4] for x1, x2, x3, x4 in zip(list_out['Process ID'], \
+        list_out['OID'], list_out['Steam type OUT'], list_out['OUT'])]
+        
+        for link_in in mapping_in:
+            link_data = [link_in[1],link_in[0],link_in[3],link_in[2]]
+            energy_link_list.append(self.energy_link(link_data, agg_steam))
+
+        for link_out in mapping_out:
+            link_data = [link_out[0],link_out[1],link_out[3],link_out[2]]
+            energy_link_list.append(self.energy_link(link_data, agg_steam))
+        self.energy_link_list = energy_link_list
+
+
+    def load_electricity(self):
+
+        electricity_link_list = []
+        agg_steam=False
+
+        list_in = self._electricity_table.drop(['Company ID','Company','Site ID','Site name', \
+        'Process Name','Notes IN','Electricity OUT','OID','OUT','Notes OUT'], axis='columns')
+        list_in = list_in.dropna()
+        mapping_in = [[x1,x2,x3,x4] for x1, x2, x3, x4 in zip(list_in['Process ID'],
+        list_in['IID'], list_in['Electricity IN'], list_in['IN'])]
+
+        list_out = self._electricity_table.drop(['Company ID','Company', 'Site ID', 'Site name', \
+        'Process Name', 'Notes IN', 'Electricity IN', 'IID', 'IN', 'Notes OUT'],axis='columns')
+        list_out = list_out.dropna()
+        mapping_out = [[x1,x2,x3,-x4] for x1, x2, x3, x4 in zip(list_out['Process ID'], \
+        list_out['OID'], list_out['Electricity OUT'], list_out['OUT'])]
+        
+        for link_in in mapping_in:
+            link_data = [link_in[1],link_in[0],link_in[3],link_in[2]]
+            electricity_link_list.append(self.energy_link(link_data, agg_steam))
+
+        for link_out in mapping_out:
+            link_data = [link_out[0],link_out[1],link_out[3],link_out[2]]
+            electricity_link_list.append(self.energy_link(link_data, agg_steam))
+        self.electricity_link_list = electricity_link_list
+
+
     def combine_olefins(self, uid1, uid2):
 
         process1 = self.process_nodes[uid1]
@@ -250,11 +308,38 @@ class Multiplex(object):
                     self.link_list.remove(duplicate)
                 except ValueError as error:
                     warnings.warn(f'{duplicate} is not part of the list of links')
+        
+
+    def remove_duplicate_links_energy(self):
+        '''Removes duplicate links from the link_list'''
+        duplicate_list = []
+        for link1, link2 in combinations(self.energy_link_list,2):
+            duplicate_list = self.check_duplicates(link1,link2,duplicate_list)
+        if len(duplicate_list) >= 1:
+            for duplicate in duplicate_list:
+                try:
+                    self.energy_link_list.remove(duplicate)
+                except ValueError as error:
+                    warnings.warn(f'{duplicate} is not part of the list of links')
+
+
+    def remove_duplicate_links_electricity(self):
+        '''Removes duplicate links from the link_list'''
+        duplicate_list = []
+        for link1, link2 in combinations(self.electricity_link_list,2):
+            duplicate_list = self.check_duplicates_electricity(link1,link2,duplicate_list)
+        if len(duplicate_list) >= 1:
+            for duplicate in duplicate_list:
+                try:
+                    self.electricity_link_list.remove(duplicate)
+                except ValueError as error:
+                    warnings.warn(f'{duplicate} is not part of the list of links')
 
 
     def check_duplicates(self, link1, link2, duplicate_list):
         '''Check if two links are duplicates by comparing the mass flow rate,
         temperature and pressure'''
+        """
         # Compare if the link is between the same pair of nodes and at the same layer
         if link1['source'] is link2['source'] and link1['source_type'] is link2['source_type'] and\
         link1['target'] is link2['target'] and link1['target_type'] is link2['target_type']:
@@ -268,6 +353,41 @@ class Multiplex(object):
 
                 else:
                     print(link1['source'],link1['target'],'Flow rates match, but temperature or pressure dont')
+        """
+        if link1['source'] is not link2['source']:
+            return duplicate_list
+        if link1['target'] is not link2['target']:
+            return duplicate_list
+        if link1['source_type'] is not link2['source_type']:
+            return duplicate_list
+        if link1['target_type'] is not link2['target_type']:
+            return duplicate_list
+        if abs(link1['mass_flow_rate']-link2['mass_flow_rate']) /  link1['mass_flow_rate'] > 0.0001:
+            return duplicate_list
+        if abs(link1['temperature']-link2['temperature'])/link1['temperature'] > 0.0001:
+            return duplicate_list
+        if abs(link1['pressure']-link2['pressure'])/link1['pressure'] > 0.0001:
+            return duplicate_list   
+
+        duplicate_list.append(link2)
+        return duplicate_list
+
+
+    def check_duplicates_electricity(self, link1, link2, duplicate_list):
+        '''Check if two links are duplicates by comparing the mass flow rate,
+        temperature and pressure'''
+        if link1['source'] is not link2['source']:
+            return duplicate_list
+        if link1['target'] is not link2['target']:
+            return duplicate_list
+        if link1['source_type'] is not link2['source_type']:
+            return duplicate_list
+        if link1['target_type'] is not link2['target_type']:
+            return duplicate_list
+        if abs(link1['energy']-link2['energy']) /  link1['energy'] > 0.0001:
+            return duplicate_list 
+
+        duplicate_list.append(link2)
         return duplicate_list
 
 
@@ -317,6 +437,34 @@ class Multiplex(object):
         """
 
 
+    def cluster_material_boundary(self):
+
+        for link in self.link_list:
+            if link['source'] not in self.process_nodes.keys():
+                link['cluster_boundary'] = 'To'
+            
+            if link['target'] not in self.process_nodes.keys():
+                link['cluster_boundary'] = 'From'
+
+
+    def cluster_energy_boundary(self):
+        for link in self.energy_link_list:
+            if link['source'] not in self.process_nodes.keys():
+                link['cluster_boundary'] = 'To'
+            
+            if link['target'] not in self.process_nodes.keys():
+                link['cluster_boundary'] = 'From'
+
+    
+    def cluster_electricity_boundary(self):
+        for link in self.electricity_link_list:
+            if link['source'] not in self.process_nodes.keys():
+                link['cluster_boundary'] = 'To'
+            
+            if link['target'] not in self.process_nodes.keys():
+                link['cluster_boundary'] = 'From'
+
+
     def resource_link(self, stream, link_data):
         '''Returns a dictionary containing the link data in the format required for py3plex'''
 
@@ -327,11 +475,13 @@ class Multiplex(object):
             moleflow  = 0
             volflow = 0
 
+        carbon_flow_rate = link_data[2]*stream.carbonfrac
+
         link_dict = {
             "source": link_data[0],        # Source node
-            "source_type": 1,   # Source node layer
+            "source_type": 'Material',   # Source node layer
             "target": link_data[1],        # Target node
-            "target_type": 1,   # Target node layer
+            "target_type": 'Material',   # Target node layer
             "type": 1,          # ????
 
             "source_stream": link_data[3],
@@ -345,11 +495,77 @@ class Multiplex(object):
             "pressure": stream.pressure,
             "temperature": stream.temperature,
             "carbon_content": stream.carbonfrac,
+            "carbon_flow_rate": carbon_flow_rate,
             "liquid_fraction": stream.liquid_frac,
             "solid_fraction": stream.solid_frac,
-            "vapor_fraction": stream.vapor_frac
+            "vapor_fraction": stream.vapor_frac,
+
+            "cluster_boundary": None
         }
         return link_dict
+
+
+    def energy_link(self, link_data, aggregated_steam):
+
+        heating_dict = {
+            'HHPS': 1.96671347,
+            'HPS': 1.63234735,
+            'MPS': 1.87787119,
+            'LPS': 2.09553499,
+            'LLPS': 2.13536712
+        }
+
+        if link_data[3] == 'HHPS' or link_data[3] =='HPS' or link_data[3] =='MPS' or \
+            link_data[3] =='LPS' or link_data[3] =='LLPS':
+            energy_type = link_data[3]
+            if aggregated_steam is True:
+                layer = 'Steam'
+            else:
+                layer = link_data[3]
+
+
+            energy = heating_dict[energy_type] * link_data[2]
+
+            link_dict = {
+            "source": link_data[0],
+            'source_type': layer,
+            "target":link_data[1],
+            "target_type": layer,
+            "type": 1,
+
+            "energy_type": energy_type,
+            "mass_flow_rate": link_data[2],
+            "energy": energy,
+
+            "pressure": 1,
+            "temperature": 1,
+
+            "cluster_boundary": None
+            }
+            return link_dict
+
+        elif link_data[3] =='ELECTRIC':
+            energy_type = 'Electricity'
+            layer = 'Electricity'
+        
+            link_dict = {
+                "source": link_data[0],
+                'source_type': layer,
+                "target":link_data[1],
+                "target_type": layer,
+                "type": 1,
+
+                "energy_type": energy_type,
+
+                "mass_flow_rate": link_data[2],
+                "energy": link_data[2],
+
+                "pressure": "N.A.",
+                "temperature": "N.A.",
+
+                "cluster_boundary": None
+            }
+            return link_dict
 
 
     def process_node(self, uid, aspendata, process_data):
@@ -360,6 +576,7 @@ class Multiplex(object):
             "source": uid,    # Process ID
             "type": 1,
             "name": process_data['process_name'],
+            "name_abbrev": process_data['process_name_abbreviation'],
             "energy_consumption": aspendata.energy,
             "steam_usage": aspendata.steam_usage,
             "energy_use": aspendata.energy_use,
@@ -474,6 +691,16 @@ class Multiplex(object):
         self._table = pd.read_excel(excel_file)
 
 
+    def load_energy_table(self, excel_file, sheet_name=0):
+        """Load the energy table from Excel"""
+        self._energy_table = pd.read_excel(excel_file, sheet_name=sheet_name)
+
+
+    def load_electricity_table(self, excel_file, sheet_name=0):
+        """Load the energy table from Excel"""
+        self._electricity_table = pd.read_excel(excel_file, sheet_name=sheet_name)
+
+
     def add_process_static_table(self, aspen_file):
         '''Add a process to the static table'''
         # Add a process to the static table in the current memory
@@ -562,6 +789,7 @@ class Multiplex(object):
                         display=False,
                         background_shape="circle",
                         labels=network_labels,
+                        edge_size = 10,
                         node_size=1)
 
         for edge_type, edges in multilinks.items():
