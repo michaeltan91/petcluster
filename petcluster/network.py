@@ -1,8 +1,9 @@
+"""Contains the complex network calculations"""
 import networkx as nx
-import matplotlib as plt
 import plotly.graph_objects as go
 
 class Network(object):
+    """Base network visualization and properties class"""
 
     def __init__(self, multiplex, nodes, process_nodes):
 
@@ -12,12 +13,12 @@ class Network(object):
 
 
     def adjacency_matrix(self, weight, layer=None):
-
+        """Returns a numpy array of the adjacency matrix"""
         if layer is None:
             node_list = sorted([x for x in self.multiplex.core_network.nodes if \
                 x[0] in self.process_nodes.keys()])
 
-            return (nx.to_numpy_array(self.multiplex.core_network,nodelist=node_list), 
+            return (nx.to_numpy_array(self.multiplex.core_network,nodelist=node_list),
                 [str(x) for x in node_list])
 
         else:
@@ -27,15 +28,15 @@ class Network(object):
                 node_list = sorted([x for x in networks[labels.index(layer)].nodes if \
                     x[0] in self.process_nodes.keys()])
 
-                return (nx.to_numpy_array(networks[labels.index(layer)], nodelist= node_list, weight=weight), \
-                    [x[0] for x in node_list])
+                return (nx.to_numpy_array(networks[labels.index(layer)], nodelist= node_list,\
+                        weight=weight), [x[0] for x in node_list])
 
             except KeyError:
                 print(f'Layer {layer} is defined in the model')
 
-    
-    def visualize_adjacency_matrix(self, weighted = False, layer=None, **kwargs):
 
+    def visualize_adjacency_matrix(self, weighted = False, layer=None, **kwargs):
+        """Visualizes the adjacency matrix"""
         weight_options = {
             "Material":"carbon_flow_rate",
             "Steam": "energy",
@@ -63,6 +64,3 @@ class Network(object):
         fig.update_yaxes(autorange="reversed")
         fig.update_layout(**kwargs)
         fig.show()
-
-
-

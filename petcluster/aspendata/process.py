@@ -1,16 +1,14 @@
 '''Contains the data structure and retrieval from the Aspen Plus simulations'''
-from sqlite3 import adapt
 from warnings import warn
 import pandas as pd
 import numpy as np
+from openpyxl import load_workbook
 from aspenauto import Model
 
 from .stream import Stream
 from .processdatasheet import ProcessDataSheet
-from .utility import ElectricityManual, ManualUtility, NaturalGasManual, SteamGenManual, SteamStripping, HighTemperatureHeat
-
-from openpyxl import load_workbook
-from openpyxl.styles import Font
+from .utility import ElectricityManual, ManualUtility, NaturalGasManual, \
+                     SteamGenManual, SteamStripping, HighTemperatureHeat
 
 class Process(object):
     '''Main process class containing the data structure'''
@@ -23,7 +21,7 @@ class Process(object):
         self.material_product = {}
         self.material_waste = {}
         self.material_all = {}
-
+        self.superstructure = {}
 
         # Create auxiliary dicts
         self.material_auxiliary = {}
@@ -97,14 +95,13 @@ class Process(object):
             self.aspen.natural_gas['NG'] = utility
             self.aspen.utilities['NG'].blocks[block] = natural_gas
             self.aspen.natural_gas['NG'].blocks[block] = natural_gas
-            warn(f"Created utility NG if not intended check syntax")
+            warn("Created utility NG if not intended check syntax")
 
-    
+
     def add_manual_electricity(self, block, elec_stream_id):
         '''Add a manual electricity utility'''
 
         elec_stream = self.aspen.streams[elec_stream_id]
-        
         electricity = ElectricityManual(block, elec_stream)
         try:
             self.aspen.utilities['ELECTRIC'].blocks[block] = electricity
@@ -115,9 +112,9 @@ class Process(object):
             self.aspen.electricity['ELECTRIC'] = utility
             self.aspen.utilities['ELECTRIC'].blocks[block] = electricity
             self.aspen.electricity['ELECTRIC'].blocks[block] = electricity
-            warn(f'Created utility ELECTRIC if not intended check syntax')
+            warn('Created utility ELECTRIC if not intended check syntax')
 
-    
+
     def add_high_temperature_heat(self, block, heatstream_id):
         """Add a high temperature heat_stream"""
 
@@ -145,13 +142,6 @@ class Process(object):
         feed_streams = []
         product_streams = []
         waste_streams = []
-
-        ng_streams = []
-        h2_streams = []
-        co2_streams = []
-        o2_streams = []
-        air_streams = []
-
 
         #self.utilities = self.aspen.utilities
 
@@ -231,7 +221,7 @@ class Process(object):
             self.steam_usage[steam[0]] = temp2
 
             self.energy_use[steam[0]] = [duty_use* 8000 * 1E-6, mass_use]
-            self.energy_production[steam[1]] = [duty_prod* 8000 * 1E-6, mass_prod]   
+            self.energy_production[steam[1]] = [duty_prod* 8000 * 1E-6, mass_prod]
 
 
         # Load the total electricity duty being utilized by the process
@@ -334,11 +324,6 @@ class Process(object):
         return waste_mass / product_mass
 
 
-    def GWP(self):
-        '''Returns the Global Warming Potential of the process'''
-        return 1
-
-
     def calculate_carbon_fraction(self, component_dict):
         """Calculate the carbon fraction of all the material feed, product and waste streams"""
         if isinstance(component_dict, pd.DataFrame) is False:
@@ -416,10 +401,10 @@ class Process(object):
 
 
     def collect_energy(self, excel_file):
-        
+        """Collects all energy data  from the Aspen Plus model and saves in an Excel file"""
         energy_duty = {}
-        energy_usage = {} 
-        
+        energy_usage = {}
+
         sheet_name = "name"
         work_book = load_workbook(excel_file)
 
@@ -430,7 +415,7 @@ class Process(object):
             sheet = work_book.create_sheet(sheet_name)
         except KeyError:
             sheet = work_book.create_sheet(sheet_name)
-        
+
         # Make a list of the standard steam definitions of the VICI project
         steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN'],
         ['HPS','HPS-GEN'], ['HHPS','HHPS-GEN']]
@@ -456,7 +441,7 @@ class Process(object):
             # Set the units of energy to TJ per operating year
             energy_duty[steam[0]] = temp1 / 3600
             energy_usage[steam[0]] = temp2
-        
+
         i = 0
         for steam in steam_types:
             sheet.cell(row= i+1, column=1).value = steam[0]
@@ -465,4 +450,4 @@ class Process(object):
 
             i += 1
 
-        work_book.save(excel_file) 
+        work_book.save(excel_file)

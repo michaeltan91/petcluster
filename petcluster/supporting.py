@@ -12,10 +12,6 @@ def load_aspen_data(aspen_file, process_data, component_dict):
     # Runs the model without error reports
     aspen_data = Process(aspen_file)
 
-    process_name = process_data['process_name']
-    company = process_data['company']
-    site = process_data['site']
-
     # Add manual steam entry to the process for each occurence in the process data
     for steam in process_data['manual_steam']:
         steam_type = steam['steam_type']

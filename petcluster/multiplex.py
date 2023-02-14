@@ -1,16 +1,13 @@
 '''Contains the main structure and methods'''
 import os
-from shutil import ExecError
 import warnings
 import json
 from itertools import combinations
 import numpy as np
 import pandas as pd
-from openpyxl import load_workbook
 
 from aspenauto import Model
 from py3plex.core import multinet
-from py3plex.visualization.multilayer import draw_multiedges, draw_multilayer_default, hairball_plot, plt
 
 from . import supporting
 from .performance import Performance
@@ -28,11 +25,14 @@ class Multiplex(object):
         self.mapping_out = {}
         self.component_dict = {}
         self._table = {}
-        
+        self._energy_table = {}
+        self._electricity_table = {}
+
         self.link_list = []
         self.energy_link_list = []
         self.electricity_link_list = []
-        self.performance = Performance(self.multiplex, self.nodes, self.process_nodes, self.component_dict)
+        self.performance = Performance(self.multiplex, self.nodes, \
+                                    self.process_nodes, self.component_dict)
         self.network = Network(self.multiplex, self.nodes, self.process_nodes)
 
     def load_network_aspen(self):
@@ -53,7 +53,7 @@ class Multiplex(object):
         self.mapping_in = {}
         for stream in mapping_in:
             node = stream[0]
-            if node not in self.mapping_in.keys():
+            if node not in self.mapping_in:
                 self.mapping_in[node] = []
             self.mapping_in[node].append(stream)
 
@@ -67,7 +67,7 @@ class Multiplex(object):
         self.mapping_out = {}
         for stream in mapping_out:
             node = stream[0]
-            if node not in self.mapping_out.keys():
+            if node not in self.mapping_out:
                 self.mapping_out[node] = []
             self.mapping_out[node].append(stream)
 
@@ -113,35 +113,6 @@ class Multiplex(object):
                 self.process_nodes[uid] = self.nodes[uid]
 
                 # Create an instance of each link using the static table.
-                """
-                # The link property data is retrieved directly from each respective aspen file.
-                # Starting with the incoming links.
-                try:
-                    for link_in in self.mapping_in[uid]:
-                        stream_id = link_in[2]
-                        stream = aspen_data.material_all[stream_id]
-                        # Collect basic connection data in a list
-                        link_data = [link_in[1],link_in[0],link_in[3],None, link_in[2]]
-                        #
-                        link_list.append(self.resource_link(stream, link_data))
-                except KeyError:
-                    warnings.warn(f"Stream {stream_id} in process {uid} \
-                    not defined in the static table. Check it is defined correctly")
-
-                # Link property data is retrieved for the outgoing links.
-                try:
-                    for link_out in self.mapping_out[uid]:
-                        stream_id = link_out[2]
-                        stream = aspen_data.material_all[stream_id]
-                        # Collect basic connection data in a list
-                        link_data = [link_out[0],link_out[1],link_out[3],link_out[2],None]
-                        #
-                        link_list.append(self.resource_link(stream, link_data))
-                except KeyError:
-                    warnings.warn(f"Stream {stream_id} in process {uid} \
-                    not defined in the static table. Check it is defined correctly")
-                """
-
                 # The link property data is retrieved directly from each respective aspen file.
                 # Starting with the incoming links.
                 try:
@@ -176,7 +147,7 @@ class Multiplex(object):
 
 
     def collect_steam(self):
-
+        """Method collecting the steam demand of processses from the Aspen Plus models"""
         # Make a list of all the files in current directory
         files = [file_name for file_name in os.listdir('.') if os.path.isfile(file_name)]
 
@@ -207,21 +178,23 @@ class Multiplex(object):
 
 
     def load_energy(self, agg_steam = True):
-
+        """Load steam mapping from the energy table"""
         energy_link_list = []
 
         list_in = self._energy_table.drop(['Company ID','Company','Site ID','Site name', \
-        'Process Name','Notes IN','Steam type OUT','OID','OUT','Notes OUT','Unnamed: 14'], axis='columns')
+        'Process Name','Notes IN','Steam type OUT','OID','OUT','Notes OUT','Unnamed: 14'],\
+                                        axis='columns')
         list_in = list_in.dropna()
         mapping_in = [[x1,x2,x3,x4] for x1, x2, x3, x4 in zip(list_in['Process ID'],
         list_in['IID'], list_in['Steam type IN'], list_in['IN'])]
 
         list_out = self._energy_table.drop(['Company ID','Company', 'Site ID', 'Site name', \
-        'Process Name', 'Notes IN', 'Steam type IN', 'IID', 'IN', 'Notes OUT', 'Unnamed: 14'],axis='columns')
+        'Process Name', 'Notes IN', 'Steam type IN', 'IID', 'IN', 'Notes OUT', 'Unnamed: 14'],\
+                                        axis='columns')
         list_out = list_out.dropna()
         mapping_out = [[x1,x2,x3,-x4] for x1, x2, x3, x4 in zip(list_out['Process ID'], \
         list_out['OID'], list_out['Steam type OUT'], list_out['OUT'])]
-        
+
         for link_in in mapping_in:
             link_data = [link_in[1],link_in[0],link_in[3],link_in[2]]
             energy_link_list.append(self.energy_link(link_data, agg_steam))
@@ -233,7 +206,7 @@ class Multiplex(object):
 
 
     def load_electricity(self):
-
+        """Load electricity mapping from the electricity table"""
         electricity_link_list = []
         agg_steam=False
 
@@ -248,7 +221,7 @@ class Multiplex(object):
         list_out = list_out.dropna()
         mapping_out = [[x1,x2,x3,-x4] for x1, x2, x3, x4 in zip(list_out['Process ID'], \
         list_out['OID'], list_out['Electricity OUT'], list_out['OUT'])]
-        
+
         for link_in in mapping_in:
             link_data = [link_in[1],link_in[0],link_in[3],link_in[2]]
             electricity_link_list.append(self.energy_link(link_data, agg_steam))
@@ -260,7 +233,7 @@ class Multiplex(object):
 
 
     def combine_olefins(self, uid1, uid2):
-
+        """Combine the data from two Aspen Plus Olefin models into a single data enitity"""
         process1 = self.process_nodes[uid1]
         process2 = self.process_nodes[uid2]
 
@@ -270,7 +243,7 @@ class Multiplex(object):
 
         data_type = 'steam_usage'
         for key in process1[data_type]:
-            process1[data_type][key] += process2[data_type][key] 
+            process1[data_type][key] += process2[data_type][key]
 
         data_type = 'energy_use'
         for key in process1[data_type]:
@@ -281,7 +254,7 @@ class Multiplex(object):
             process1[data_type][key] += process2[data_type][key]
 
         data_type = 'auxiliary_materials'
-        for key1, value1 in process1[data_type].items():
+        for key1, _value1 in process1[data_type].items():
             try:
                 for key2, value2 in process2[data_type][key1].items():
                     process1[key1][key2] = value2
@@ -306,9 +279,9 @@ class Multiplex(object):
             for duplicate in duplicate_list:
                 try:
                     self.link_list.remove(duplicate)
-                except ValueError as error:
+                except ValueError:
                     warnings.warn(f'{duplicate} is not part of the list of links')
-        
+
 
     def remove_duplicate_links_energy(self):
         '''Removes duplicate links from the link_list'''
@@ -319,7 +292,7 @@ class Multiplex(object):
             for duplicate in duplicate_list:
                 try:
                     self.energy_link_list.remove(duplicate)
-                except ValueError as error:
+                except ValueError:
                     warnings.warn(f'{duplicate} is not part of the list of links')
 
 
@@ -332,28 +305,14 @@ class Multiplex(object):
             for duplicate in duplicate_list:
                 try:
                     self.electricity_link_list.remove(duplicate)
-                except ValueError as error:
+                except ValueError:
                     warnings.warn(f'{duplicate} is not part of the list of links')
 
 
     def check_duplicates(self, link1, link2, duplicate_list):
         '''Check if two links are duplicates by comparing the mass flow rate,
         temperature and pressure'''
-        """
-        # Compare if the link is between the same pair of nodes and at the same layer
-        if link1['source'] is link2['source'] and link1['source_type'] is link2['source_type'] and\
-        link1['target'] is link2['target'] and link1['target_type'] is link2['target_type']:
-            # Compare the mass flow rate of the links
-            if abs(link1['mass_flow_rate']-link2['mass_flow_rate']) / \
-            link1['mass_flow_rate'] < 0.0001:
-                # Compare temperature and pressure of the links
-                if abs(link1['temperature']-link2['temperature'])/link1['temperature'] < 0.0001 and\
-                abs(link1['pressure']-link2['pressure'])/link1['pressure'] < 0.0001:
-                    duplicate_list.append(link2)
 
-                else:
-                    print(link1['source'],link1['target'],'Flow rates match, but temperature or pressure dont')
-        """
         if link1['source'] is not link2['source']:
             return duplicate_list
         if link1['target'] is not link2['target']:
@@ -367,7 +326,7 @@ class Multiplex(object):
         if abs(link1['temperature']-link2['temperature'])/link1['temperature'] > 0.0001:
             return duplicate_list
         if abs(link1['pressure']-link2['pressure'])/link1['pressure'] > 0.0001:
-            return duplicate_list   
+            return duplicate_list
 
         duplicate_list.append(link2)
         return duplicate_list
@@ -385,14 +344,15 @@ class Multiplex(object):
         if link1['target_type'] is not link2['target_type']:
             return duplicate_list
         if abs(link1['energy']-link2['energy']) /  link1['energy'] > 0.0001:
-            return duplicate_list 
+            return duplicate_list
 
         duplicate_list.append(link2)
         return duplicate_list
 
 
     def process_auxiliary(self, aspendata):
-        '''Retrieves the auxiliary stream data from the aspen model and returns them in a dictionary'''
+        '''Retrieves the auxiliary stream data from the aspen model and
+        returns them in a dictionary'''
         aux_dict = {}
         for aux_type, aux_values in aspendata.material_auxiliary.items():
             aux_dict[aux_type] = {}
@@ -410,7 +370,7 @@ class Multiplex(object):
                     "liquid_fraction": stream.liquid_frac,
                     "solid_fraction": stream.solid_frac,
                     "vapor_fraction": stream.vapor_frac
-                    } 
+                    }
                 except KeyError:
                     pass
         return aux_dict
@@ -423,44 +383,38 @@ class Multiplex(object):
             if link['source'] not in self.process_nodes.keys():
                 link['source_type'] = 'IN'
                 link['target_type'] = 'IN'
-            
+
             if link['target'] not in self.process_nodes.keys():
                 link['source_type'] = 'OUT'
                 link['target_type'] = 'OUT'
 
-        """
-        for link in link_list:
-            for component, frac in link['mass_fraction'].items():
-                if frac >= 0.6:
-                    link['source_type'] = self.component_dict['Subcluster related'][component]
-                    link['target_type'] = self.component_dict['Subcluster related'][component]
-        """
-
 
     def cluster_material_boundary(self):
-
+        """Assign tag to material links crossing the cluster boundary"""
         for link in self.link_list:
             if link['source'] not in self.process_nodes.keys():
                 link['cluster_boundary'] = 'To'
-            
+
             if link['target'] not in self.process_nodes.keys():
                 link['cluster_boundary'] = 'From'
 
 
     def cluster_energy_boundary(self):
+        """Assign tag to steam links crossing the cluster boundary"""
         for link in self.energy_link_list:
             if link['source'] not in self.process_nodes.keys():
                 link['cluster_boundary'] = 'To'
-            
+
             if link['target'] not in self.process_nodes.keys():
                 link['cluster_boundary'] = 'From'
 
-    
+
     def cluster_electricity_boundary(self):
+        """Assign tag to electricity links crossing the cluster boundary"""
         for link in self.electricity_link_list:
             if link['source'] not in self.process_nodes.keys():
                 link['cluster_boundary'] = 'To'
-            
+
             if link['target'] not in self.process_nodes.keys():
                 link['cluster_boundary'] = 'From'
 
@@ -506,7 +460,7 @@ class Multiplex(object):
 
 
     def energy_link(self, link_data, aggregated_steam):
-
+        """Returns a dictionary containing the energy link data in the format required by Py3plex"""
         heating_dict = {
             'HHPS': 1.96671347,
             'HPS': 1.63234735,
@@ -547,7 +501,7 @@ class Multiplex(object):
         elif link_data[3] =='ELECTRIC':
             energy_type = 'Electricity'
             layer = 'Electricity'
-        
+
             link_dict = {
                 "source": link_data[0],
                 'source_type': layer,
@@ -766,39 +720,35 @@ class Multiplex(object):
             json.dump(data, fp)
 
 
-    def read_data_json(self, json_file):
-
+    def read_data_json(self, json_file_material, json_file_nodes):
+        """
         file_object = open(json_file, "r", encoding='utf-8')
         json_content = file_object.read()
         data = json.loads(json_content)
 
         self.process_nodes = data['process_nodes']
         self.background_nodes = data['background_nodes']
-        
+
         self.nodes = self.process_nodes
         self.nodes.update(self.background_nodes)
 
         self.link_list = data['link_list']
+        """
+        file_object = open(json_file_material, "r")
+        json_content = file_object.read()
+        self.link_list = json.loads(json_content)
 
+        file_object = open(json_file_nodes, "r", encoding="utf-8")
+        json_content = file_object.read()
+        data = json.loads(json_content)
 
-    def  test_visualize(self):
+        self.nodes = data['nodes']
+        self.performance.nodes = self.nodes
+        self.network.nodes = self.nodes
 
-        network_labels, graphs, multilinks = self.multiplex.get_layers()
+        self.process_nodes = data['process_nodes']
+        self.performance.process_nodes = self.process_nodes
+        self.network.process_nodes=self.process_nodes
 
-        draw_multilayer_default(graphs,
-                        display=False,
-                        background_shape="circle",
-                        labels=network_labels,
-                        edge_size = 10,
-                        node_size=1)
-
-        for edge_type, edges in multilinks.items():
-            draw_multiedges(graphs,
-                    edges,
-                    alphachannel=0.2,
-                    linepoints="--",
-                    linecolor="black",
-                    curve_height=2,
-                    linmod="upper",
-                    linewidth=0.4)
-        plt.show()
+        self.background_nodes = data['background_nodes']
+        self.performance.background_nodes = self.background_nodes

@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import numpy as np
 
 class Performance(object):
-
+    """Main performance object for calculating cluster performance and sankey diagrams"""
 
     def __init__(self, multiplex, nodes, process_nodes, component_dict):
 
@@ -14,7 +14,9 @@ class Performance(object):
         self.component_dict = component_dict
 
 
-    def carbon_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30, title=True, process_abrev = False):
+    def carbon_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500,\
+                    fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30, \
+                    title=True, process_abrev = False):
         '''Depicts all the carbon flows in the cluster in a sankey diagram'''
         label = []
 
@@ -54,16 +56,18 @@ class Performance(object):
                                 name_target = self.nodes[link[1][0]]['name']
                             except KeyError:
                                 name_target = link[1][0]
-                        
+
                         if name_target == 'Stack':
                             name_target = 'Environment'
 
                         if name_source in label and name_target in label:
-                            indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                            indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                            a=set(indices1).intersection(indices2)
-                            if len(a) > 0:
-                                data['value'][a.pop()] += carbon_content
+                            indices1 = [i for i, x in enumerate(data['source']) \
+                                        if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) \
+                                        if x == label.index(name_target)]
+                            intersect=set(indices1).intersection(indices2)
+                            if len(intersect) > 0:
+                                data['value'][intersect.pop()] += carbon_content
                             else:
                                 if name_source not in label:
                                     label.append(name_source)
@@ -83,7 +87,7 @@ class Performance(object):
 
                                 data['value'].append(carbon_content)
 
-                        else:        
+                        else:
                             if name_source not in label:
                                 label.append(name_source)
                                 data['source'].append(counter)
@@ -104,7 +108,7 @@ class Performance(object):
                     color = list(np.random.choice(range(256), size=3))
                     temp = f"rgba({color[0]},{color[1]},{color[2]},0.5)"
                     data['color'].append(temp)
-                        
+
             else:
                 if link[0][1] == 'Material' and link[1][1] == 'Material':
                     if link[0][0] in process_list or link[1][0] in process_list:
@@ -113,7 +117,7 @@ class Performance(object):
                         carbon_content = stream['carbon_content']*stream['mass_flow_rate']
 
                         if carbon_content >= cutoff and link[0][0] not in ignore_list:
-                            
+
                             try:
                                 name_source = self.nodes[link[0][0]][process_name]
                             except KeyError:
@@ -134,11 +138,13 @@ class Performance(object):
                                 name_target = 'Environment'
 
                             if name_source in label and name_target in label:
-                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                                a=set(indices1).intersection(indices2)
-                                if len(a) > 0:
-                                    data['value'][a.pop()] += carbon_content
+                                indices1 = [i for i, x in enumerate(data['source']) \
+                                            if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) \
+                                            if x == label.index(name_target)]
+                                intersect=set(indices1).intersection(indices2)
+                                if len(intersect) > 0:
+                                    data['value'][intersect.pop()] += carbon_content
 
                                 else:
                                     if name_source not in label:
@@ -204,14 +210,15 @@ class Performance(object):
             autosize = False,
             width = fig_width,
             height = fig_height)
-        
+
         config = {
         'toImageButtonOptions': { 'height': None, 'width': None}
         }
         fig.show(config=config)
 
 
-    def material_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
+    def material_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500,\
+                        fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
         '''Depicts all the carbon flows in the cluster in a sankey diagram'''
         label = []
 
@@ -239,16 +246,18 @@ class Performance(object):
                             name_target = self.nodes[link[1][0]]['name']
                         except KeyError:
                             name_target = link[1][0]
-                        
+
                         if name_target == 'Stack':
                             name_target = 'Environment'
 
                         if name_source in label and name_target in label:
-                            indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                            indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                            a=set(indices1).intersection(indices2)
-                            if len(a) > 0:
-                                data['value'][a.pop()] += material_flow
+                            indices1 = [i for i, x in enumerate(data['source']) \
+                                        if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) \
+                                        if x == label.index(name_target)]
+                            intersect=set(indices1).intersection(indices2)
+                            if len(intersect) > 0:
+                                data['value'][intersect.pop()] += material_flow
                             else:
                                 if name_source not in label:
                                     label.append(name_source)
@@ -268,7 +277,7 @@ class Performance(object):
 
                                 data['value'].append(material_flow)
 
-                        else:        
+                        else:
                             if name_source not in label:
                                 label.append(name_source)
                                 data['source'].append(counter)
@@ -289,7 +298,7 @@ class Performance(object):
                     color = list(np.random.choice(range(256), size=3))
                     temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
                     data['color'].append(temp)
-                        
+
             else:
                 if link[0][1] == 'Material' and link[1][1] == 'Material':
                     if link[0][0] in process_list or link[1][0] in process_list:
@@ -298,7 +307,7 @@ class Performance(object):
                         material_flow = stream['mass_flow_rate']
 
                         if material_flow >= cutoff and link[0][0] not in ignore_list:
-                            
+
                             try:
                                 name_source = self.nodes[link[0][0]]['name']
                             except KeyError:
@@ -313,11 +322,13 @@ class Performance(object):
                                 name_target = 'Environment'
 
                             if name_source in label and name_target in label:
-                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                                a=set(indices1).intersection(indices2)
-                                if len(a) > 0:
-                                    data['value'][a.pop()] += material_flow
+                                indices1 = [i for i, x in enumerate(data['source']) \
+                                            if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) \
+                                            if x == label.index(name_target)]
+                                intersect=set(indices1).intersection(indices2)
+                                if len(intersect) > 0:
+                                    data['value'][intersect.pop()] += material_flow
 
                                 else:
                                     if name_source not in label:
@@ -377,7 +388,7 @@ class Performance(object):
         autosize = False,
         width = fig_width,
         height = fig_height)
-        
+
         config = {
         'toImageButtonOptions': { 'height': None, 'width': None}
         }
@@ -385,7 +396,8 @@ class Performance(object):
 
 
 
-    def water_sankey(self, process_list ="",ignore_list ="" ,cutoff = 0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 15, text_font=30):
+    def water_sankey(self, process_list ="",ignore_list ="" ,cutoff = 0.1, fig_width=1500, \
+                    fig_height=750, fig_pad=150, fig_thickness = 15, text_font=30):
         '''Depicts all the water flows in the cluster in a sankey diagram'''
         label = []
 
@@ -408,11 +420,11 @@ class Performance(object):
                         water = 0
 
                     if water >= cutoff and link[0][0] not in ignore_list:
-                        try: 
+                        try:
                             name_source = self.nodes[link[0][0]]['name']
                         except KeyError:
                             name_source = link[0][0]
-                        
+
                         try:
                             name_target = self.nodes[link[1][0]]['name']
                         except KeyError:
@@ -420,14 +432,15 @@ class Performance(object):
 
                         if name_target == 'Stack':
                             name_target = 'Environment'
-                            
-                        
+
                         if name_source in label and name_target in label:
-                            indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                            indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                            a=set(indices1).intersection(indices2)
-                            if len(a) > 0:
-                                data['value'][a.pop()] += water
+                            indices1 = [i for i, x in enumerate(data['source']) \
+                                        if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) \
+                                        if x == label.index(name_target)]
+                            intersect=set(indices1).intersection(indices2)
+                            if len(intersect) > 0:
+                                data['value'][intersect.pop()] += water
                             else:
                                 if name_source not in label:
                                     label.append(name_source)
@@ -445,9 +458,7 @@ class Performance(object):
                                     data['target'].append(label.index(name_target))
 
                                 data['value'].append(water)
-                            
                         else:
-                            
                             if name_source not in label:
                                 label.append(name_source)
                                 data['source'].append(counter)
@@ -462,9 +473,7 @@ class Performance(object):
                                 counter += 1
                             else:
                                 data['target'].append(label.index(name_target))
-                                
                             data['value'].append(water)
-                            
                         color = list(np.random.choice(range(256), size=3))
                         temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
                         data['color'].append(temp)
@@ -481,7 +490,7 @@ class Performance(object):
 
                         if water >= cutoff and link[0][0] not in ignore_list:
 
-                            try: 
+                            try:
                                 name_source = self.nodes[link[0][0]]['name']
                             except KeyError:
                                 name_source = link[0][0]
@@ -493,13 +502,15 @@ class Performance(object):
 
                             if name_target == 'Stack':
                                 name_target = 'Environment'
-                            
+
                             if name_source in label and name_target in label:
-                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                                a=set(indices1).intersection(indices2)
-                                if len(a) > 0:
-                                    data['value'][a.pop()] += water
+                                indices1 = [i for i, x in enumerate(data['source']) \
+                                            if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) \
+                                            if x == label.index(name_target)]
+                                intersect=set(indices1).intersection(indices2)
+                                if len(intersect) > 0:
+                                    data['value'][intersect.pop()] += water
                                 else:
                                     if name_source not in label:
                                         label.append(name_source)
@@ -517,7 +528,7 @@ class Performance(object):
                                         data['target'].append(label.index(name_target))
 
                                         data['value'].append(water)
-                            
+
                             else:
                                 if name_source not in label:
                                     label.append(name_source)
@@ -536,7 +547,7 @@ class Performance(object):
 
                                 data['value'].append(water)
                             color = list(np.random.choice(range(256), size=3))
-                            
+
                             temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
                             data['color'].append(temp)
 
@@ -560,7 +571,8 @@ class Performance(object):
         fig.show()
 
 
-    def steam_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
+    def steam_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, \
+                    fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
         '''Depicts all the carbon flows in the cluster in a sankey diagram'''
         label = []
 
@@ -588,16 +600,18 @@ class Performance(object):
                             name_target = self.nodes[link[1][0]]['name']
                         except KeyError:
                             name_target = link[1][0]
-                        
+
                         if name_target == 'Stack':
                             name_target = 'Environment'
 
                         if name_source in label and name_target in label:
-                            indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                            indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                            a=set(indices1).intersection(indices2)
-                            if len(a) > 0:
-                                data['value'][a.pop()] += steam_amount
+                            indices1 = [i for i, x in enumerate(data['source']) \
+                                        if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) \
+                                        if x == label.index(name_target)]
+                            intersect=set(indices1).intersection(indices2)
+                            if len(intersect) > 0:
+                                data['value'][intersect.pop()] += steam_amount
                             else:
                                 if name_source not in label:
                                     label.append(name_source)
@@ -617,7 +631,7 @@ class Performance(object):
 
                                 data['value'].append(steam_amount)
 
-                        else:        
+                        else:
                             if name_source not in label:
                                 label.append(name_source)
                                 data['source'].append(counter)
@@ -638,7 +652,7 @@ class Performance(object):
                     color = list(np.random.choice(range(256), size=3))
                     temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
                     data['color'].append(temp)
-                        
+
             else:
                 if link[0][1] == 'Steam' and link[1][1] == 'Steam':
                     if link[0][0] in process_list or link[1][0] in process_list:
@@ -647,7 +661,7 @@ class Performance(object):
                         steam_amount = stream['energy']
 
                         if steam_amount >= cutoff and link[0][0] not in ignore_list:
-                            
+
                             try:
                                 name_source = self.nodes[link[0][0]]['name']
                             except KeyError:
@@ -662,11 +676,13 @@ class Performance(object):
                                 name_target = 'Environment'
 
                             if name_source in label and name_target in label:
-                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                                a=set(indices1).intersection(indices2)
-                                if len(a) > 0:
-                                    data['value'][a.pop()] += steam_amount
+                                indices1 = [i for i, x in enumerate(data['source']) \
+                                            if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) \
+                                            if x == label.index(name_target)]
+                                intersect=set(indices1).intersection(indices2)
+                                if len(intersect) > 0:
+                                    data['value'][intersect.pop()] += steam_amount
 
                                 else:
                                     if name_source not in label:
@@ -726,7 +742,7 @@ class Performance(object):
         autosize = False,
         width = fig_width,
         height = fig_height)
-        
+
         config = {
         'toImageButtonOptions': { 'height': None, 'width': None}
         }
@@ -753,7 +769,7 @@ class Performance(object):
                         carbon_prod += carbon
                     except KeyError:
                         pass
-                else:  
+                else:
                     try:
                         stream = self.multiplex[link[0]][link[1]][link[2]]
                         carbon = stream['mass_flow_rate'] * stream['carbon_content']
@@ -794,7 +810,7 @@ class Performance(object):
             if link[1][0] == 'PROD':
                 data = self.multiplex[link[0]][link[1]][link[2]]
                 carbon_prod += data['carbon_content'] * data['mass_flow_rate']
-            else: 
+            else:
                 data = self.multiplex[link[0]][link[1]][link[2]]
                 carbon_waste += data['carbon_content'] * data['mass_flow_rate']
 
@@ -803,7 +819,7 @@ class Performance(object):
 
     def water_process(self, process):
         '''
-        Returns the total amount of water entering the process, 
+        Returns the total amount of water entering the process,
         total water to the chlorinated waste treatment,
         total water to waste water treatment,
         total water in the product streams,
@@ -866,7 +882,7 @@ class Performance(object):
 
     def water_cluster(self):
         '''
-        Returns the total amount of water entering the cluster, 
+        Returns the total amount of water entering the cluster,
         total water to the chlorinated waste treatment,
         total water to waste water treatment,
         total water in the product streams,
@@ -935,7 +951,7 @@ class Performance(object):
         Calculates the amount of direct CO2 emissions of a process
         [ktonne / operating-year]
         '''
-        
+
         co2_out = 0
 
         for link in self.multiplex.get_edges():
@@ -951,12 +967,6 @@ class Performance(object):
                 stream = self.multiplex[link[0]][link[1]][link[2]]
                 co2 = stream['carbon_content']*stream['mass_flow_rate']/12.011*44.0095
                 co2_out += co2
-                """
-                for component, mole_frac in stream['mass_fraction'].items():
-                    carbon_atom = self.component_dict['Carbon Atoms'][component]
-                    co2 = stream['mole_flow_rate']*mole_frac*carbon_atom*44.009*8000*1E-6
-                    co2_out += co2
-                """
 
         return co2_out
 
@@ -973,14 +983,7 @@ class Performance(object):
 
         for link in layers[layer_out].edges:
             data = self.multiplex[link[0]][link[1]][link[2]]
-            """
-            try:
-                co2 = data['mass_fraction']['CO2'] * data['mass_flow_rate']
-                co2_out += co2
-            except KeyError:
-                co2_out += 0
-            """
-            
+
             if link[1][0] == 'ENVI:':
                 try:
                     co2 = data['mass_fraction']['CO2'] * data['mass_flow_rate']
@@ -988,7 +991,7 @@ class Performance(object):
                 except KeyError:
                     co2_out += 0
             elif link[1][0] == 'STCK':
-                co2 = data['carbon_content']*data['mass_flow_rate']/12.011*44.0095 
+                co2 = data['carbon_content']*data['mass_flow_rate']/12.011*44.0095
                 co2_out += co2
 
         return co2_out
@@ -1043,7 +1046,8 @@ class Performance(object):
                              values=values)])
         fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=30,
                         marker=dict(colors=colors, line=dict(color='#000000', width=2)))
-        fig.update_layout(title_text = f'{process}. {process_name}<br>net energy consumption in TJ/year',
+        fig.update_layout(title_text = f'{process}. {process_name}<br>net energy consumption \
+                        in TJ/year',
                         autosize=False,
                         width=1000,
                         height=1000,
@@ -1057,14 +1061,15 @@ class Performance(object):
 
 
     def energy_cluster(self, ignore_list='' ,normalized=False, title=True):
-        '''Retrieves the overall energy consumption of the cluster and presents the values in a piechart'''
+        '''Retrieves the overall energy consumption of the cluster and
+        presents the values in a piechart'''
 
         label_dict = {
         'LLPS': 'Very low pressure steam<br>(T=142,7°C)',
         'LPS' : 'Low pressure steam<br>(T=155,5°C)',
         'MPS' : 'Medium pressure steam<br>(T=214,9°C)',
         'HPS' : 'High pressure steam<br>(T=265,2°C)',
-        'HHPS': 'Very high pressure steam<br>(T=311°C)', 
+        'HHPS': 'Very high pressure steam<br>(T=311°C)',
         'Electricity': 'Electricity',
         'NG': 'Natural gas',
         'R134A': 'Refrigerant<br>R134A',
@@ -1092,14 +1097,6 @@ class Performance(object):
             'Cooling water': 'lightblue',
             'Chilled water': 'darkblue'
         }
-        """
-        energy_total = Counter({})
-        for node in self.process_nodes.values():
-            energy_total += Counter(node['energy_consumption'])
-
-        values=[round(x,0) for name,x in energy_total.items() if name not in ignore_list and x != 0]
-        utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
-        """
         if normalized is True:
             carbon_prod = 0
             tags,layers,_link_dict=  self.multiplex.get_layers()
@@ -1109,23 +1106,27 @@ class Performance(object):
                 if link[1][0] == 'PROD':
                     data = self.multiplex[link[0]][link[1]][link[2]]
                     carbon_prod += data['carbon_content'] * data['mass_flow_rate']
-            
+
             energy_total = Counter({})
             for node in self.process_nodes.values():
                 energy_total += Counter(node['energy_consumption'])
 
-            values=[round(x/carbon_prod,1) for name,x in energy_total.items() if name not in ignore_list and x != 0]
-            utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
-            figure_title = f'Cluster net energy intensity<br>in TJ/ktonne of carbon product'
+            values=[round(x/carbon_prod,1) for name,x in energy_total.items() \
+                    if name not in ignore_list and x != 0]
+            utilities=[name for name,x in energy_total.items() \
+                    if name not in ignore_list and x != 0]
+            figure_title = "Cluster net energy intensity<br>in TJ/ktonne of carbon product"
 
         else:
             energy_total = Counter({})
             for node in self.process_nodes.values():
                 energy_total += Counter(node['energy_consumption'])
 
-            values=[round(x,0) for name,x in energy_total.items() if name not in ignore_list and x != 0]
-            utilities=[name for name,x in energy_total.items() if name not in ignore_list and  x != 0]
-            figure_title = f'Cluster<br>net energy consumption in TJ/year'
+            values=[round(x,0) for name,x in energy_total.items() \
+                    if name not in ignore_list and x != 0]
+            utilities=[name for name,x in energy_total.items() \
+                    if name not in ignore_list and  x != 0]
+            figure_title = "Cluster<br>net energy consumption in TJ/year"
 
         labels = [label_dict[name] for name in utilities]
         colors = [color_dict[name] for name in utilities]
@@ -1134,13 +1135,6 @@ class Performance(object):
                              values=values)])
         fig.update_traces(hoverinfo='label+percent', textinfo='value+percent', textfont_size=25,
                         marker=dict(colors=colors, line=dict(color='#000000', width=2)))
-        """fig.update_layout(title_text = figure_title,
-                        autosize=False,
-                        width=1000,
-                        height=1000,
-                        font=dict(size=30),
-                        legend_font=dict(size=28))
-        """
         if title is True:
             fig.update_layout(title_text = figure_title,
             autosize = False,
