@@ -1,8 +1,7 @@
 '''Contains the performance calculation and visualization'''
+from collections import Counter
 import plotly.graph_objects as go
 import numpy as np
-
-from collections import Counter
 
 class Performance(object):
 
@@ -15,7 +14,7 @@ class Performance(object):
         self.component_dict = component_dict
 
 
-    def carbon_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
+    def carbon_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30, title=True, process_abrev = False):
         '''Depicts all the carbon flows in the cluster in a sankey diagram'''
         label = []
 
@@ -27,91 +26,35 @@ class Performance(object):
         data['label'] = []
         counter = 0
 
+        if process_abrev is True:
+            process_name = 'name_abbrev'
+        else:
+            process_name = 'name'
+
+
         for link in self.multiplex.get_edges():
             if not process_list:
-
-                stream = self.multiplex[link[0]][link[1]][link[2]]
-                carbon_content = stream['carbon_content']*stream['mass_flow_rate']
-
-                if carbon_content >= cutoff and link[0][0] not in ignore_list:
-                    try:
-                        name_source = self.nodes[link[0][0]]['name']
-                    except KeyError:
-                        name_source = link[0][0]
-
-                    try:
-                        name_target = self.nodes[link[1][0]]['name']
-                    except KeyError:
-                        name_target = link[1][0]
-                    
-                    if name_target == 'Stack':
-                        name_target = 'Environment'
-
-                    if name_source in label and name_target in label:
-                        indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                        indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                        a=set(indices1).intersection(indices2)
-                        if len(a) > 0:
-                            data['value'][a.pop()] += carbon_content
-                        else:
-                            if name_source not in label:
-                                label.append(name_source)
-                                data['source'].append(counter)
-                                counter += 1
-                            else:
-                                label.index(name_source)
-                                data['source'].append(label.index(name_source))
-
-
-                            if name_target not in label:
-                                label.append(name_target)
-                                data['target'].append(counter)
-                                counter += 1
-                            else:
-                                data['target'].append(label.index(name_target))
-
-                            data['value'].append(carbon_content)
-
-                    else:        
-                        if name_source not in label:
-                            label.append(name_source)
-                            data['source'].append(counter)
-                            counter += 1
-                        else:
-                            label.index(name_source)
-                            data['source'].append(label.index(name_source))
-
-
-                        if name_target not in label:
-                            label.append(name_target)
-                            data['target'].append(counter)
-                            counter += 1
-                        else:
-                            data['target'].append(label.index(name_target))
-
-                        data['value'].append(carbon_content)
-                color = list(np.random.choice(range(256), size=3))
-                temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
-                data['color'].append(temp)
-                    
-            else:
-                if link[0][0] in process_list or link[1][0] in process_list:
-
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
                     stream = self.multiplex[link[0]][link[1]][link[2]]
                     carbon_content = stream['carbon_content']*stream['mass_flow_rate']
 
                     if carbon_content >= cutoff and link[0][0] not in ignore_list:
+                        try:
+                            name_source = self.nodes[link[0][0]][process_name]
+                        except KeyError:
+                            try:
+                                name_source = self.nodes[link[0][0]]['name']
+                            except KeyError:
+                                name_source = link[0][0]
+
+                        try:
+                            name_target = self.nodes[link[1][0]][process_name]
+                        except KeyError:
+                            try:
+                                name_target = self.nodes[link[1][0]]['name']
+                            except KeyError:
+                                name_target = link[1][0]
                         
-                        try:
-                            name_source = self.nodes[link[0][0]]['name']
-                        except KeyError:
-                            name_source = link[0][0]
-
-                        try:
-                            name_target = self.nodes[link[1][0]]['name']
-                        except KeyError:
-                            name_target = link[1][0]
-
                         if name_target == 'Stack':
                             name_target = 'Environment'
 
@@ -121,7 +64,6 @@ class Performance(object):
                             a=set(indices1).intersection(indices2)
                             if len(a) > 0:
                                 data['value'][a.pop()] += carbon_content
-
                             else:
                                 if name_source not in label:
                                     label.append(name_source)
@@ -130,6 +72,7 @@ class Performance(object):
                                 else:
                                     label.index(name_source)
                                     data['source'].append(label.index(name_source))
+
 
                                 if name_target not in label:
                                     label.append(name_target)
@@ -140,8 +83,7 @@ class Performance(object):
 
                                 data['value'].append(carbon_content)
 
-                        else:
-
+                        else:        
                             if name_source not in label:
                                 label.append(name_source)
                                 data['source'].append(counter)
@@ -160,8 +102,263 @@ class Performance(object):
 
                             data['value'].append(carbon_content)
                     color = list(np.random.choice(range(256), size=3))
+                    temp = f"rgba({color[0]},{color[1]},{color[2]},0.5)"
+                    data['color'].append(temp)
+                        
+            else:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
+                    if link[0][0] in process_list or link[1][0] in process_list:
+
+                        stream = self.multiplex[link[0]][link[1]][link[2]]
+                        carbon_content = stream['carbon_content']*stream['mass_flow_rate']
+
+                        if carbon_content >= cutoff and link[0][0] not in ignore_list:
+                            
+                            try:
+                                name_source = self.nodes[link[0][0]][process_name]
+                            except KeyError:
+                                try:
+                                    name_source = self.nodes[link[0][0]]['name']
+                                except KeyError:
+                                    name_source = link[0][0]
+
+                            try:
+                                name_target = self.nodes[link[1][0]][process_name]
+                            except KeyError:
+                                try:
+                                    name_target = self.nodes[link[1][0]]['name']
+                                except KeyError:
+                                    name_target = link[1][0]
+
+                            if name_target == 'Stack':
+                                name_target = 'Environment'
+
+                            if name_source in label and name_target in label:
+                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
+                                a=set(indices1).intersection(indices2)
+                                if len(a) > 0:
+                                    data['value'][a.pop()] += carbon_content
+
+                                else:
+                                    if name_source not in label:
+                                        label.append(name_source)
+                                        data['source'].append(counter)
+                                        counter += 1
+                                    else:
+                                        label.index(name_source)
+                                        data['source'].append(label.index(name_source))
+
+                                    if name_target not in label:
+                                        label.append(name_target)
+                                        data['target'].append(counter)
+                                        counter += 1
+                                    else:
+                                        data['target'].append(label.index(name_target))
+
+                                    data['value'].append(carbon_content)
+
+                            else:
+
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(carbon_content)
+                        color = list(np.random.choice(range(256), size=3))
+                        temp = f"rgba({color[0]},{color[1]},{color[2]},0.5)"
+                        data['color'].append(temp)
+
+        fig = go.Figure(data=[go.Sankey(
+            valueformat = ".2f",
+            valuesuffix = "ktonne/oper-year",
+            node = dict(
+            pad = fig_pad,
+            thickness = fig_thickness,
+            line = dict(color = "black", width = 1.5),
+            label = label,
+            color = "blue"
+            ),
+            link = data
+        )])
+
+        if title is True:
+            fig.update_layout(title_text="Carbon flows", font_size=text_font,
+            autosize = False,
+            width = fig_width,
+            height = fig_height)
+        else:
+            fig.update_layout(font_size=text_font,
+            autosize = False,
+            width = fig_width,
+            height = fig_height)
+        
+        config = {
+        'toImageButtonOptions': { 'height': None, 'width': None}
+        }
+        fig.show(config=config)
+
+
+    def material_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
+        '''Depicts all the carbon flows in the cluster in a sankey diagram'''
+        label = []
+
+        data = {}
+        data['source'] = []
+        data['target'] = []
+        data['value'] = []
+        data['color'] = []
+        data['label'] = []
+        counter = 0
+
+        for link in self.multiplex.get_edges():
+            if not process_list:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
+                    stream = self.multiplex[link[0]][link[1]][link[2]]
+                    material_flow = stream['mass_flow_rate']
+
+                    if material_flow >= cutoff and link[0][0] not in ignore_list:
+                        try:
+                            name_source = self.nodes[link[0][0]]['name']
+                        except KeyError:
+                            name_source = link[0][0]
+
+                        try:
+                            name_target = self.nodes[link[1][0]]['name']
+                        except KeyError:
+                            name_target = link[1][0]
+                        
+                        if name_target == 'Stack':
+                            name_target = 'Environment'
+
+                        if name_source in label and name_target in label:
+                            indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
+                            a=set(indices1).intersection(indices2)
+                            if len(a) > 0:
+                                data['value'][a.pop()] += material_flow
+                            else:
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(material_flow)
+
+                        else:        
+                            if name_source not in label:
+                                label.append(name_source)
+                                data['source'].append(counter)
+                                counter += 1
+                            else:
+                                label.index(name_source)
+                                data['source'].append(label.index(name_source))
+
+
+                            if name_target not in label:
+                                label.append(name_target)
+                                data['target'].append(counter)
+                                counter += 1
+                            else:
+                                data['target'].append(label.index(name_target))
+
+                            data['value'].append(material_flow)
+                    color = list(np.random.choice(range(256), size=3))
                     temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
                     data['color'].append(temp)
+                        
+            else:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
+                    if link[0][0] in process_list or link[1][0] in process_list:
+
+                        stream = self.multiplex[link[0]][link[1]][link[2]]
+                        material_flow = stream['mass_flow_rate']
+
+                        if material_flow >= cutoff and link[0][0] not in ignore_list:
+                            
+                            try:
+                                name_source = self.nodes[link[0][0]]['name']
+                            except KeyError:
+                                name_source = link[0][0]
+
+                            try:
+                                name_target = self.nodes[link[1][0]]['name']
+                            except KeyError:
+                                name_target = link[1][0]
+
+                            if name_target == 'Stack':
+                                name_target = 'Environment'
+
+                            if name_source in label and name_target in label:
+                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
+                                a=set(indices1).intersection(indices2)
+                                if len(a) > 0:
+                                    data['value'][a.pop()] += material_flow
+
+                                else:
+                                    if name_source not in label:
+                                        label.append(name_source)
+                                        data['source'].append(counter)
+                                        counter += 1
+                                    else:
+                                        label.index(name_source)
+                                        data['source'].append(label.index(name_source))
+
+                                    if name_target not in label:
+                                        label.append(name_target)
+                                        data['target'].append(counter)
+                                        counter += 1
+                                    else:
+                                        data['target'].append(label.index(name_target))
+
+                                    data['value'].append(material_flow)
+
+                            else:
+
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(material_flow)
+                        color = list(np.random.choice(range(256), size=3))
+                        temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
+                        data['color'].append(temp)
 
         fig = go.Figure(data=[go.Sankey(
             valueformat = ".2f",
@@ -176,7 +373,7 @@ class Performance(object):
             link = data
         )])
 
-        fig.update_layout(title_text="Carbon flows", font_size=text_font,
+        fig.update_layout(title_text="Material flows", font_size=text_font,
         autosize = False,
         width = fig_width,
         height = fig_height)
@@ -185,6 +382,7 @@ class Performance(object):
         'toImageButtonOptions': { 'height': None, 'width': None}
         }
         fig.show(config=config)
+
 
 
     def water_sankey(self, process_list ="",ignore_list ="" ,cutoff = 0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 15, text_font=30):
@@ -201,74 +399,7 @@ class Performance(object):
 
         for link in self.multiplex.get_edges():
             if not process_list:
-
-                stream = self.multiplex[link[0]][link[1]][link[2]]
-                try:
-                    water = stream['mass_fraction']['H2O']*stream['mass_flow_rate']
-                except KeyError:
-                    water = 0
-
-                if water >= cutoff and link[0][0] not in ignore_list:
-                    try: 
-                        name_source = self.nodes[link[0][0]]['name']
-                    except KeyError:
-                        name_source = link[0][0]
-                    
-                    try:
-                        name_target = self.nodes[link[1][0]]['name']
-                    except KeyError:
-                        name_target = link[1][0]
-                        
-                    
-                    if name_source in label and name_target in label:
-                        indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
-                        indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
-                        a=set(indices1).intersection(indices2)
-                        if len(a) > 0:
-                            data['value'][a.pop()] += water
-                        else:
-                            if name_source not in label:
-                                label.append(name_source)
-                                data['source'].append(counter)
-                                counter += 1
-                            else:
-                                label.index(name_source)
-                                data['source'].append(label.index(name_source))
-
-                            if name_target not in label:
-                                label.append(name_target)
-                                data['target'].append(counter)
-                                counter += 1
-                            else:
-                                data['target'].append(label.index(name_target))
-
-                            data['value'].append(water)
-                        
-                    else:
-                        
-                        if name_source not in label:
-                            label.append(name_source)
-                            data['source'].append(counter)
-                            counter += 1
-                        else:
-                            label.index(name_source)
-                            data['source'].append(label.index(name_source))
-
-                        if name_target not in label:
-                            label.append(name_target)
-                            data['target'].append(counter)
-                            counter += 1
-                        else:
-                            data['target'].append(label.index(name_target))
-                            
-                        data['value'].append(water)
-                        
-                    color = list(np.random.choice(range(256), size=3))
-                    temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
-                    data['color'].append(temp)
-
-            else:
-                if link[0][0] in process_list or link[1][0] in process_list:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
 
                     stream = self.multiplex[link[0]][link[1]][link[2]]
                     try:
@@ -277,16 +408,19 @@ class Performance(object):
                         water = 0
 
                     if water >= cutoff and link[0][0] not in ignore_list:
-
                         try: 
                             name_source = self.nodes[link[0][0]]['name']
                         except KeyError:
                             name_source = link[0][0]
-
+                        
                         try:
                             name_target = self.nodes[link[1][0]]['name']
                         except KeyError:
                             name_target = link[1][0]
+
+                        if name_target == 'Stack':
+                            name_target = 'Environment'
+                            
                         
                         if name_source in label and name_target in label:
                             indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
@@ -310,9 +444,10 @@ class Performance(object):
                                 else:
                                     data['target'].append(label.index(name_target))
 
-                                    data['value'].append(water)
-                        
+                                data['value'].append(water)
+                            
                         else:
+                            
                             if name_source not in label:
                                 label.append(name_source)
                                 data['source'].append(counter)
@@ -327,12 +462,83 @@ class Performance(object):
                                 counter += 1
                             else:
                                 data['target'].append(label.index(name_target))
-
+                                
                             data['value'].append(water)
+                            
                         color = list(np.random.choice(range(256), size=3))
-                        
                         temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
                         data['color'].append(temp)
+
+            else:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
+                    if link[0][0] in process_list or link[1][0] in process_list:
+
+                        stream = self.multiplex[link[0]][link[1]][link[2]]
+                        try:
+                            water = stream['mass_fraction']['H2O']*stream['mass_flow_rate']
+                        except KeyError:
+                            water = 0
+
+                        if water >= cutoff and link[0][0] not in ignore_list:
+
+                            try: 
+                                name_source = self.nodes[link[0][0]]['name']
+                            except KeyError:
+                                name_source = link[0][0]
+
+                            try:
+                                name_target = self.nodes[link[1][0]]['name']
+                            except KeyError:
+                                name_target = link[1][0]
+
+                            if name_target == 'Stack':
+                                name_target = 'Environment'
+                            
+                            if name_source in label and name_target in label:
+                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
+                                a=set(indices1).intersection(indices2)
+                                if len(a) > 0:
+                                    data['value'][a.pop()] += water
+                                else:
+                                    if name_source not in label:
+                                        label.append(name_source)
+                                        data['source'].append(counter)
+                                        counter += 1
+                                    else:
+                                        label.index(name_source)
+                                        data['source'].append(label.index(name_source))
+
+                                    if name_target not in label:
+                                        label.append(name_target)
+                                        data['target'].append(counter)
+                                        counter += 1
+                                    else:
+                                        data['target'].append(label.index(name_target))
+
+                                        data['value'].append(water)
+                            
+                            else:
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(water)
+                            color = list(np.random.choice(range(256), size=3))
+                            
+                            temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
+                            data['color'].append(temp)
 
         fig = go.Figure(data=[go.Sankey(
             valueformat = ".2f",
@@ -352,6 +558,179 @@ class Performance(object):
         width = fig_width,
         height = fig_height)
         fig.show()
+
+
+    def steam_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500, fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
+        '''Depicts all the carbon flows in the cluster in a sankey diagram'''
+        label = []
+
+        data = {}
+        data['source'] = []
+        data['target'] = []
+        data['value'] = []
+        data['color'] = []
+        data['label'] = []
+        counter = 0
+
+        for link in self.multiplex.get_edges():
+            if not process_list:
+                if link[0][1] == 'Steam' and link[1][1] == 'Steam':
+                    stream = self.multiplex[link[0]][link[1]][link[2]]
+                    steam_amount = stream['energy']
+
+                    if steam_amount >= cutoff and link[0][0] not in ignore_list:
+                        try:
+                            name_source = self.nodes[link[0][0]]['name']
+                        except KeyError:
+                            name_source = link[0][0]
+
+                        try:
+                            name_target = self.nodes[link[1][0]]['name']
+                        except KeyError:
+                            name_target = link[1][0]
+                        
+                        if name_target == 'Stack':
+                            name_target = 'Environment'
+
+                        if name_source in label and name_target in label:
+                            indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
+                            a=set(indices1).intersection(indices2)
+                            if len(a) > 0:
+                                data['value'][a.pop()] += steam_amount
+                            else:
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(steam_amount)
+
+                        else:        
+                            if name_source not in label:
+                                label.append(name_source)
+                                data['source'].append(counter)
+                                counter += 1
+                            else:
+                                label.index(name_source)
+                                data['source'].append(label.index(name_source))
+
+
+                            if name_target not in label:
+                                label.append(name_target)
+                                data['target'].append(counter)
+                                counter += 1
+                            else:
+                                data['target'].append(label.index(name_target))
+
+                            data['value'].append(steam_amount)
+                    color = list(np.random.choice(range(256), size=3))
+                    temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
+                    data['color'].append(temp)
+                        
+            else:
+                if link[0][1] == 'Steam' and link[1][1] == 'Steam':
+                    if link[0][0] in process_list or link[1][0] in process_list:
+
+                        stream = self.multiplex[link[0]][link[1]][link[2]]
+                        steam_amount = stream['energy']
+
+                        if steam_amount >= cutoff and link[0][0] not in ignore_list:
+                            
+                            try:
+                                name_source = self.nodes[link[0][0]]['name']
+                            except KeyError:
+                                name_source = link[0][0]
+
+                            try:
+                                name_target = self.nodes[link[1][0]]['name']
+                            except KeyError:
+                                name_target = link[1][0]
+
+                            if name_target == 'Stack':
+                                name_target = 'Environment'
+
+                            if name_source in label and name_target in label:
+                                indices1 = [i for i, x in enumerate(data['source']) if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) if x == label.index(name_target)]
+                                a=set(indices1).intersection(indices2)
+                                if len(a) > 0:
+                                    data['value'][a.pop()] += steam_amount
+
+                                else:
+                                    if name_source not in label:
+                                        label.append(name_source)
+                                        data['source'].append(counter)
+                                        counter += 1
+                                    else:
+                                        label.index(name_source)
+                                        data['source'].append(label.index(name_source))
+
+                                    if name_target not in label:
+                                        label.append(name_target)
+                                        data['target'].append(counter)
+                                        counter += 1
+                                    else:
+                                        data['target'].append(label.index(name_target))
+
+                                    data['value'].append(steam_amount)
+
+                            else:
+
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(steam_amount)
+                        color = list(np.random.choice(range(256), size=3))
+                        temp = f"rgba({color[0]},{color[1]},{color[2]},0.8)"
+                        data['color'].append(temp)
+
+        fig = go.Figure(data=[go.Sankey(
+            valueformat = ".2f",
+            valuesuffix = "TJ/oper-year",
+            node = dict(
+            pad = fig_pad,
+            thickness = fig_thickness,
+            line = dict(color = "black", width = 0.5),
+            label = label,
+            color = "blue"
+            ),
+            link = data
+        )])
+
+        fig.update_layout(title_text="Steam energy flows", font_size=text_font,
+        autosize = False,
+        width = fig_width,
+        height = fig_height)
+        
+        config = {
+        'toImageButtonOptions': { 'height': None, 'width': None}
+        }
+        fig.show(config=config)
 
 
     def carbon_process(self, process):
@@ -630,6 +1009,7 @@ class Performance(object):
         'R717': 'Refrigerant<br>R717',
         'R410A': 'Refrigerant<br>R410A',
         'R41': 'Refrigerant<br>R41',
+        'R1150': "Refrigerant<br>R1150",
         'Cooling water': 'Cooling water',
         'Chilled water': 'Chilled water'
         }
@@ -646,6 +1026,7 @@ class Performance(object):
             'R717': 'black',
             'R410A': 'brown',
             'R41': 'turquoise',
+            'R1150': "red",
             'Cooling water': 'lightblue',
             'Chilled water': 'darkblue'
         }
@@ -675,7 +1056,7 @@ class Performance(object):
         fig.show(config=config)
 
 
-    def energy_cluster(self, ignore_list='' ,normalized=False):
+    def energy_cluster(self, ignore_list='' ,normalized=False, title=True):
         '''Retrieves the overall energy consumption of the cluster and presents the values in a piechart'''
 
         label_dict = {
@@ -690,6 +1071,7 @@ class Performance(object):
         'R717': 'Refrigerant<br>R717',
         'R410A': 'Refrigerant<br>R410A',
         'R41': 'Refrigerant<br>R41',
+        'R1150': "Refrigerant<br>R1150",
         'Cooling water': 'Cooling water',
         'Chilled water': 'Chilled water'
         }
@@ -706,6 +1088,7 @@ class Performance(object):
             'R717': 'black',
             'R410A': 'brown',
             'R41': 'turquoise',
+            'R1150': "red",
             'Cooling water': 'lightblue',
             'Chilled water': 'darkblue'
         }
@@ -746,6 +1129,48 @@ class Performance(object):
 
         labels = [label_dict[name] for name in utilities]
         colors = [color_dict[name] for name in utilities]
+
+        fig = go.Figure(data=[go.Pie(labels=labels,
+                             values=values)])
+        fig.update_traces(hoverinfo='label+percent', textinfo='value+percent', textfont_size=25,
+                        marker=dict(colors=colors, line=dict(color='#000000', width=2)))
+        """fig.update_layout(title_text = figure_title,
+                        autosize=False,
+                        width=1000,
+                        height=1000,
+                        font=dict(size=30),
+                        legend_font=dict(size=28))
+        """
+        if title is True:
+            fig.update_layout(title_text = figure_title,
+            autosize = False,
+            width=1000,
+            height=1000,
+            font=dict(size=25),
+            legend_font=dict(size=25))
+        else:
+            fig.update_layout(autosize = False,
+            width=1000,
+            height=1000,
+            font=dict(size=25),
+            legend_font=dict(size=25))
+
+        config = {
+        'toImageButtonOptions': { 'height': None, 'width': None, }
+        }
+        fig.show(config=config)
+        """fig.write_image("figures/energy_process.svg")"""
+
+
+    def emissions_cluster(self, ignore_list='',normalized = False):
+
+        if normalized is True:
+
+            figure_title = 'Cluster total emission'
+
+        else:
+
+            figure_title = 'Cluster emission intensity per ktonne of carbon product'
 
         fig = go.Figure(data=[go.Pie(labels=labels,
                              values=values)])
