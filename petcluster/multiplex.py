@@ -709,15 +709,15 @@ class Multiplex(object):
 
 
     def save_data_json(self, json_file, ):
-
+        """Save background node, process node and material link list to a json file"""
         data = {
             "background_nodes" : self.background_nodes,
             "process_nodes" : self.process_nodes,
             "link_list" : self.link_list
         }
 
-        with open(json_file, "w", encoding='utf-8') as fp:
-            json.dump(data, fp)
+        with open(json_file, "w", encoding='utf-8') as outfile:
+            json.dump(data, outfile)
 
 
     def read_data_json(self, json_file_material, json_file_nodes):
@@ -734,7 +734,7 @@ class Multiplex(object):
 
         self.link_list = data['link_list']
         """
-        file_object = open(json_file_material, "r")
+        file_object = open(json_file_material, "r", encoding="utf-8")
         json_content = file_object.read()
         self.link_list = json.loads(json_content)
 
