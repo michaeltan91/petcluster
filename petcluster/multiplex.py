@@ -239,19 +239,31 @@ class Multiplex(object):
 
         data_type = 'energy_consumption'
         for key in process1[data_type]:
-            process1[data_type][key] += process2[data_type][key]
+            try:
+                process1[data_type][key] += process2[data_type][key]
+            except KeyError:
+                continue
 
         data_type = 'steam_usage'
         for key in process1[data_type]:
-            process1[data_type][key] += process2[data_type][key]
+            try:
+                process1[data_type][key] += process2[data_type][key]
+            except KeyError:
+                continue
 
         data_type = 'energy_use'
         for key in process1[data_type]:
-            process1[data_type][key] += process2[data_type][key]
+            try:
+                process1[data_type][key] += process2[data_type][key]
+            except KeyError:
+                continue
 
         data_type = 'energy_production'
         for key in process1[data_type]:
-            process1[data_type][key] += process2[data_type][key]
+            try:
+                process1[data_type][key] += process2[data_type][key]
+            except KeyError:
+                continue
 
         data_type = 'auxiliary_materials'
         for key1, _value1 in process1[data_type].items():
