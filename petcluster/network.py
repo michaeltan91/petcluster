@@ -58,7 +58,7 @@ class Network(object):
             y=node_list,
             xgap =1,
             ygap=1,
-            colorscale = 'balance'
+            colorscale = 'OrRd'
         ))
         fig.update_xaxes(side="top", tickangle=-90)
         fig.update_yaxes(autorange="reversed")
