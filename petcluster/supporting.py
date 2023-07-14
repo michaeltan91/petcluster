@@ -48,6 +48,12 @@ def load_aspen_data(aspen_file, process_data, component_dict):
 
     aspen_data.load_process_data()
     aspen_data.calculate_carbon_fraction(component_dict)
+    if "U3" in aspen_file or "U5" in aspen_file or "U9" in aspen_file:
+        aspen_data.collect_chp_data()
+    elif "U6" in aspen_file or "U7" in aspen_file or "U8" in aspen_file:
+        aspen_data.collect_boiler_data()
+
+
     aspen_data.close_aspen()
 
     return aspen_data
