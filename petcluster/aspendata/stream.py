@@ -1,5 +1,6 @@
 '''Contains the data structure and retrieval for the stream data from the Aspen Plus simulation'''
 import warnings
+import copy
 
 class Stream(object):
     '''The main stream class for retrieving Aspen Plus stream data'''
@@ -7,8 +8,13 @@ class Stream(object):
 
         # Collect the mass fractions of the stream of all the components in the simulation
         self.massfrac = stream.massfrac
+        self.massflow_comp = {}
+        for comp, massfrac in stream.massfrac.items(): 
+            self.massflow_comp[comp] = stream.massflow * massfrac
+
         pop_list = [comp for comp, value in stream.massfrac.items() if value == 0]
         for element in pop_list:
+            self.massfrac = copy.deepcopy(self.massfrac)
             self.massfrac.pop(element)
 
         # Collect the mole fractions of the stream of the all the components in the simulation
