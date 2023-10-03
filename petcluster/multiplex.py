@@ -177,6 +177,29 @@ class Multiplex(object):
                 self.process_nodes[uid] = self.nodes[uid]
 
 
+    def load_data_json(self, material_file):
+        """"""
+        import json
+        fileObject = open(material_file, "r")
+        jsonContent = fileObject.read()
+        self.link_list = json.loads(jsonContent)
+
+        fileObject = open("node_data.json", "r")
+        jsonContent = fileObject.read()
+
+        data = json.loads(jsonContent)
+        self.nodes = data['nodes']
+        self.performance.nodes = self.nodes
+        self.network.nodes = self.nodes
+
+        self.process_nodes = data['process_nodes']
+        self.performance.process_nodes = self.process_nodes
+        self.network.process_nodes=self.process_nodes
+
+        self.background_nodes = data['background_nodes']
+        self.performance.background_nodes = self.background_nodes
+
+
     def load_energy(self, agg_steam = True):
         """Load steam mapping from the energy table"""
         energy_link_list = []
@@ -281,6 +304,18 @@ class Multiplex(object):
                 link['target'] = uid1
 
 
+    def remove_excess_material_links(self):
+        """Remove duplicate material flows"""
+        del_list = []
+        for link1, link2 in combinations(self.link_list,2):
+            del_list = self.check_material_flows(link1,link2,del_list)
+        if len(del_list) >= 1:
+            for duplicate in del_list:
+                try:
+                    self.link_list.remove(duplicate)
+                except ValueError:
+                    warnings.warn(f"{duplicate} is not part of the list of links")
+
 
     def remove_duplicate_links(self):
         '''Removes duplicate links from the link_list'''
@@ -321,6 +356,32 @@ class Multiplex(object):
                     warnings.warn(f'{duplicate} is not part of the list of links')
 
 
+    def check_material_flows(self, link1, link2, del_list):
+        """Check if two links are transporting the same chemical and should be combined into one"""
+        if link1['source'] != link2['source']:
+            #print(5)
+            return del_list
+        if link1['target'] != link2['target']:
+            #print(4)
+            return del_list
+        if link1['source_type'] != link2['source_type']:
+            #print(3)
+            return del_list
+        if link1['target_type'] != link2['target_type']:
+            #print(0)
+            return del_list
+        if link1["mass_fraction"] != link2["mass_fraction"]:
+            #print(1)
+            return del_list
+        #print(2)
+        link1["mass_flow_rate"] += link2["mass_flow_rate"]
+        link1["mole_flow_rate"] += link2["mole_flow_rate"]
+        link1["volume_flow_rate"] += link2["volume_flow_rate"]
+        link1["carbon_flow_rate"] += link2["carbon_flow_rate"]
+        del_list.append(link2)
+        return del_list
+
+
     def check_duplicates(self, link1, link2, duplicate_list):
         '''Check if two links are duplicates by comparing the mass flow rate,
         temperature and pressure'''
@@ -339,6 +400,7 @@ class Multiplex(object):
             return duplicate_list
         if abs(link1['pressure']-link2['pressure'])/link1['pressure'] > 0.0001:
             return duplicate_list
+        
 
         duplicate_list.append(link2)
         return duplicate_list
@@ -554,8 +616,11 @@ class Multiplex(object):
             "site": process_data['site'],
             "harbor_access": 1,
             "process splittable": 1,
-            "opex": 1
+            "opex": 1,
+            "stream_table": aspendata.superstructure
         }
+        
+
         return node_dict
 
 
