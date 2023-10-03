@@ -1,6 +1,8 @@
 '''Contains the performance calculation and visualization'''
 from collections import Counter
 import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 import numpy as np
 
 class Performance(object):
@@ -215,10 +217,12 @@ class Performance(object):
         'toImageButtonOptions': { 'height': None, 'width': None}
         }
         fig.show(config=config)
+        fig.write_image("carbon_sankey.pdf")
 
 
     def material_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500,\
-                        fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30):
+                        fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30,\
+                        title=True):
         '''Depicts all the carbon flows in the cluster in a sankey diagram'''
         label = []
 
@@ -384,10 +388,16 @@ class Performance(object):
             link = data
         )])
 
-        fig.update_layout(title_text="Material flows", font_size=text_font,
-        autosize = False,
-        width = fig_width,
-        height = fig_height)
+        if title is True:
+            fig.update_layout(title_text="Material flows", font_size=text_font,
+            autosize = False,
+            width = fig_width,
+            height = fig_height)
+        else:
+            fig.update_layout(font_size=text_font,
+            autosize = False,
+            width = fig_width,
+            height = fig_height)
 
         config = {
         'toImageButtonOptions': { 'height': None, 'width': None}
@@ -795,29 +805,27 @@ class Performance(object):
         [ktonne / operating-year]
         '''
         carbon_in = 0
-        carbon_waste = 0
+        carbon_envi = 0
         carbon_prod = 0
 
-        tags,layers,_link_dict=  self.multiplex.get_layers()
-        layer_in = tags.index('IN')
-        layer_out = tags.index('OUT')
+        for link in self.multiplex.get_edges(data=True):
+            if link[0][1] == "Material" and link[1][1] == "Material":
+                if link[0][0] == "MRKT":
+                    if link[1][0] in self.process_nodes.keys():
+                        for stream in link[3]:
+                            carbon_in += stream["carbon_flow_rate"]
+                elif link[1][0] == "PROD":
+                    for stream in link[3]:
+                        print(stream)
+                        carbon_prod += stream["carbon_flow_rate"]
+                elif link[1][0] == "ENVI":
+                    for stream in link[3]:
+                        carbon_envi += stream["carbon_flow_rate"]
 
-        for link in layers[layer_in].edges:
-            data = self.multiplex[link[0]][link[1]][link[2]]
-            carbon_in += data['carbon_content'] * data['mass_flow_rate']
-
-        for link in layers[layer_out].edges:
-            if link[1][0] == 'PROD':
-                data = self.multiplex[link[0]][link[1]][link[2]]
-                carbon_prod += data['carbon_content'] * data['mass_flow_rate']
-            else:
-                data = self.multiplex[link[0]][link[1]][link[2]]
-                carbon_waste += data['carbon_content'] * data['mass_flow_rate']
-
-        return carbon_in, carbon_waste, carbon_prod, carbon_prod/carbon_in
+        return carbon_in, carbon_envi, carbon_prod, carbon_prod/carbon_in
 
 
-    def water_process(self, process):
+    def water_process_old(self, process):
         '''
         Returns the total amount of water entering the process,
         total water to the chlorinated waste treatment,
@@ -878,6 +886,62 @@ class Performance(object):
                     pass
 
         return water_in, water_lq_chlor, water_wwt, water_prod, water_air, water_source
+
+
+    def water_process(self, process):
+        '''
+        Returns the total amount of water entering the process,
+        total water to the chlorinated waste treatment,
+        total water to waste water treatment,
+        total water in the product streams,
+        total water in the air,
+        total water in the source.
+        [ktonne / operating-year]
+        '''
+        water_in = 0
+        water_chlor = 0
+        water_wwt = 0
+        water_prod = 0
+        water_hct = 0
+
+
+        for link in self.multiplex.get_edges():
+            if link[0][0] == process:
+                stream = self.multiplex[link[0]][link[1]][link[2]]
+                if link[1][0] == 'PROD' or link[1][0] in self.process_nodes.keys():
+                    try:
+                        water = stream['mass_flow_rate'] * stream['mass_fraction']['H2O']
+                        water_prod += water
+                    except KeyError:
+                        pass
+                elif link[1][0] == 'LQCL':
+                    try:
+                        water = stream['mass_fraction']['H2O'] * stream['mass_flow_rate']
+                        water_chlor += water
+                    except KeyError:
+                        pass
+                elif link[1][0] == 'WWT':
+                    try:
+                        water = stream['mass_fraction']['H2O'] * stream['mass_flow_rate']
+                        water_wwt += water
+                    except KeyError:
+                        pass
+                elif link[1][0] == 'HCT':
+                    try:
+                        water = stream['mass_fraction']['H2O'] * stream['mass_flow_rate']
+                        water_hct += water
+                    except KeyError:
+                        pass
+
+            if link[1][0] == process:
+                try:
+                    stream = self.multiplex[link[0]][link[1]][link[2]]
+                    water = stream['mass_flow_rate'] * stream['mass_fraction']['H2O']
+                    water_in += water
+                except KeyError:
+                    pass
+
+        return water_in, water_chlor, water_wwt, water_prod, water_hct
 
 
     def water_cluster(self):
@@ -1132,7 +1196,7 @@ class Performance(object):
         colors = [color_dict[name] for name in utilities]
 
         fig = go.Figure(data=[go.Pie(labels=labels,
-                             values=values)])
+                        values=values)])
         fig.update_traces(hoverinfo='label+percent', textinfo='value+percent', textfont_size=25,
                         marker=dict(colors=colors, line=dict(color='#000000', width=2)))
         if title is True:
@@ -1153,7 +1217,7 @@ class Performance(object):
         'toImageButtonOptions': { 'height': None, 'width': None, }
         }
         fig.show(config=config)
-        """fig.write_image("figures/energy_process.svg")"""
+        #"""fig.write_image("figures/energy_process.svg")"""
 
 
     def emissions_cluster(self, ignore_list='',normalized = False):
@@ -1181,3 +1245,316 @@ class Performance(object):
         'toImageButtonOptions': { 'height': None, 'width': None, }
         }
         fig.show(config=config)
+
+
+    def scatter_steam(self, ignore_list="", height=1000, width =1000, font_size=10):
+        """Method for plotting the steam intensity over the steam consumption in a scatter plot"""
+        steam_consumption = {}
+        steam_intensity = {}
+
+        for node, node_value in self.process_nodes.items():
+            process_energy = 0
+            for name, value in node_value['energy_consumption'].items():
+                if value <= 0:
+                    continue
+                if name == 'LLPS':
+                    process_energy += value
+                if name == 'LPS':
+                    process_energy += value
+                if name == 'MPS':
+                    process_energy += value
+                if name == 'HPS':
+                    process_energy += value
+                if name == "HHPS":
+                    process_energy += value
+
+            process_carbon = 0
+
+            for link in self.multiplex[node,'Material']:
+                if link[0] == node:
+                    continue
+                if "U" in link[0]:
+                    # Ignore the carbon in streams send to utility units that is used as energy source
+                    continue
+                if link[0] in self.process_nodes.keys():
+                    for stream in self.multiplex[node,'Material'][link].values():
+                        process_carbon += stream['carbon_flow_rate']
+                if link[0] == 'PROD':
+                    for stream in self.multiplex[node,'Material'][link].values():
+                        process_carbon += stream['carbon_flow_rate']
+
+            if process_energy >= 0.1:
+                steam_consumption[node] = process_energy
+            
+            try:
+                if process_carbon >= 0.1:
+                    steam_intensity[node] = process_energy/process_carbon
+            except ZeroDivisionError:
+                pass
+        
+        # Remove processes that are not in both the steam consumption and steam intensity lists
+        diff = set(steam_intensity) - set(steam_consumption)
+        for x in diff:
+            steam_intensity.pop(x)
+        diff = set(steam_consumption) - set(steam_intensity)
+        for x in diff:
+            steam_consumption.pop(x)
+        
+        for process in ignore_list:
+            steam_consumption.pop(process)
+            steam_intensity.pop(process)
+        # x and y given as array_like objects
+        text = [x for x in steam_consumption.keys()]
+
+        fig = px.scatter(x=steam_consumption,y=steam_intensity,text=text, log_y=True, log_x=True,\
+                        labels={'x':'Steam consumption<br>TJ/year',\
+                        'y':'Steam intensity <br>[TJ/(ktonne of carbon X year) ]'},\
+                        width=width, height=height)
+        fig.update_traces(textposition='top center', marker={'size':10})
+        fig.update_layout(font_family="Time New Roman", font_size=font_size)
+        fig.show()
+        fig.write_image("scatter_steam.pdf")
+
+
+    def scatter_co2(self, ignore_list="", height=1000, width=1000, font_size=10):
+        """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
+
+        co2_emission = {}
+        co2_intensity = {}
+
+        for node in self.process_nodes.keys():
+            if "U" in node:
+                continue
+            else:
+                process_carbon = 0
+                for link in self.multiplex[node,'Material']:
+                    if link[0] == node:
+                        continue
+                    if "U" in link[0]:
+                        # Ignore the carbon in streams send to utility units that is used as energy source
+                        continue
+                    if link[0] in self.process_nodes.keys():
+                        for stream in self.multiplex[node,'Material'][link].values():
+                            process_carbon += stream['carbon_flow_rate']
+                    if link[0] == 'PROD':
+                        for stream in self.multiplex[node,'Material'][link].values():
+                            process_carbon += stream['carbon_flow_rate']
+
+                emission = self.co2_process(node)
+                if emission >= 0.1:
+                    co2_emission[node] = emission
+                try:
+                    if process_carbon >= 0.1:
+                        co2_intensity[node] = emission/process_carbon
+                except ZeroDivisionError:
+                    pass
+
+        # Remove processes that are not in both the steam consumption and steam intensity lists
+        diff = set(co2_intensity) - set(co2_emission)
+        for x in diff:
+            co2_intensity.pop(x)
+
+        diff = set(co2_emission) - set(co2_intensity)
+        for x in diff:
+            co2_emission.pop(x)
+
+        for process in ignore_list:
+            co2_emission.pop(process)
+            co2_intensity.pop(process)
+        # x and y given as array_like objects
+        text = [x for x in co2_emission.keys()]
+
+        fig = px.scatter(x=co2_emission,y=co2_intensity,text=text, log_y=False, log_x=True, \
+                        labels={'x':'CO2 emission<br>kton CO2/year', \
+                        'y':'CO2 intensity <br>[kton of CO2/(kton of carbon X year) ]'},\
+                        width=width, height=height)
+        fig.update_traces(textposition='top center', marker={'size':10,'color':'red'})
+        fig.update_layout(font_family="Time New Roman", font_size=font_size)
+        fig.show()
+        fig.write_image("scatter_co2.pdf")
+
+
+
+    def scatter_co2_2(self, ignore_list="", height=1000, width=1000, font_size=10):
+
+        """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
+
+        co2_emission = {}
+        co2_intensity = {}
+
+        co2_emission_util = {}
+        co2_intensity_util = {}
+
+        for node in self.process_nodes.keys():
+            if "U" not in node or node == "U1":
+                process_carbon = 0
+                for link in self.multiplex[node,'Material']:
+                    if link[0] == node:
+                        continue
+                    if "U" in link[0]:
+                        # Ignore the carbon in streams send to utility units that is used as energy source
+                        continue
+                    if link[0] in self.process_nodes.keys():
+                        for stream in self.multiplex[node,'Material'][link].values():
+                            process_carbon += stream['carbon_flow_rate']
+                    if link[0] == 'PROD':
+                        for stream in self.multiplex[node,'Material'][link].values():
+                            process_carbon += stream['carbon_flow_rate']
+
+                emission = self.co2_process(node)
+                if emission >= 0.1:
+                    co2_emission[node] = emission
+                try:
+                    if process_carbon >= 0.1:
+                        co2_intensity[node] = emission/process_carbon
+                except ZeroDivisionError:
+                    pass
+            
+            elif "U3" in node or "U5" in node or "U6" in node or "U7" in node or "U8" in node or "U9" in node:
+                if "U3" in node:
+                    util_name = "U3"
+                elif "U5" in node:
+                    util_name = "U5"
+                elif "U6" in node:
+                    util_name = "U6"
+                elif "U7" in node:
+                    util_name = "U7"
+                elif "U8" in node:
+                    util_name = "U8"
+                else:
+                    util_name = "U9" 
+                
+                energy = 0
+                for steam_type, value in self.process_nodes[node]["energy_production"].items():
+                    energy += value[0]
+                emission = self.co2_process(node)
+
+                if util_name in co2_emission_util:
+                    co2_emission_util[util_name] += emission
+                else: 
+                    co2_emission_util[util_name] = emission
+
+                if util_name in co2_intensity_util:
+                    try:
+                        co2_intensity_util[util_name] += emission/energy
+                    except ZeroDivisionError:
+                        pass
+                else:
+                    try:
+                        co2_intensity_util[util_name] = emission/energy
+                    except ZeroDivisionError:
+                        pass
+            else:
+                emission = self.co2_process(node)
+
+        # Remove processes that are not in both the steam consumption and steam intensity lists
+        diff = set(co2_intensity) - set(co2_emission)
+        for x in diff:
+            co2_intensity.pop(x)
+
+        diff = set(co2_emission) - set(co2_intensity)
+        for x in diff:
+            co2_emission.pop(x)
+
+        for process in ignore_list:
+            co2_emission.pop(process)
+            co2_intensity.pop(process)
+        # x and y given as array_like objects
+        text1 = [x for x in co2_emission.keys()]
+
+        diff = set(co2_intensity_util) - set(co2_emission_util)
+        for x in diff:
+            co2_intensity_util.pop(x)
+
+        diff = set(co2_emission_util) - set(co2_intensity_util)
+        for x in diff:
+            co2_emission_util.pop(x)
+
+        for process in ignore_list:
+            co2_emission_util.pop(process)
+            co2_intensity_util.pop(process)
+        # x and y given as array_like objects
+        text2 = [x for x in co2_emission_util.keys()]
+
+        co2_emission = [x for x in co2_emission.values()]
+        co2_intensity = [x for x in co2_intensity.values()]
+        co2_emission_util = [x for x in co2_emission_util.values()]
+        co2_intensity_util = [x for x in co2_intensity_util.values()]
+
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(go.Scatter(x=co2_emission, y=co2_intensity, text=text1, mode="markers+text",\
+                                textposition="top center", marker_size=10, name= "Chemical processes"),secondary_y=False)
+        fig.add_trace(go.Scatter(x=co2_emission_util, y=co2_intensity_util, text=text2, mode="markers+text",\
+                                textposition="top center", marker_size=10, name="CHPs and boilers", marker_symbol="diamond"),secondary_y=True)
+        fig.update_layout(font_family = "Times New Roman", height=height, width=width,font_size=font_size,\
+                        xaxis_title="CO2 emission <br> [ktonne of CO2 / year]",\
+                        yaxis_title="CO2 intensity <br> [ktonne of CO2 / ktonne of carbon product]",\
+                        yaxis2_title="CO2 intensity <br> [ktonne of CO2 / TJ of steam]",
+                        legend=dict(
+                        yanchor="top",
+                        y=0.99,
+                        xanchor="left",
+                        x=0.01
+                        ))
+        fig.update_xaxes(type="log")
+        fig.update_yaxes(type="log")
+        fig.write_image("scatter_co2_2.pdf")
+        fig.show()
+
+
+    def scatter_water(self, ignore_list='', height=1000, width=1000, font_size=10):
+
+        water_consumption = {}
+        water_intensity = {}
+        water_use = {}
+        for node in self.process_nodes.keys():
+            if "U" in node:
+                continue
+            else:
+                process_carbon = 0
+                for link in self.multiplex[node,'Material']:
+                    if link[0] == node:
+                        continue
+                    if "U" in link[0]:
+                        # Ignore the carbon in streams send to utility units that is used as energy source
+                        continue
+                    if link[0] in self.process_nodes.keys():
+                        for stream in self.multiplex[node,'Material'][link].values():
+                            process_carbon += stream['carbon_flow_rate']
+                    if link[0] == 'PROD':
+                        for stream in self.multiplex[node,'Material'][link].values():
+                            process_carbon += stream['carbon_flow_rate']
+                water = self.water_process(node)
+                water_cons = water[0]-water[1]-water[2]-water[3]
+                water_use[node] = water[0]
+
+                if water_cons >= 0.1:
+                    water_consumption[node] = water_cons
+                try:
+                    if process_carbon >= 0.1:
+                        water_intensity[node] = water_cons/process_carbon
+                except ZeroDivisionError:
+                    pass
+
+        # Remove processes that are not in both the steam consumption and steam intensity lists
+        diff = set(water_intensity) - set(water_consumption)
+        for x in diff:
+            water_intensity.pop(x)
+
+        diff = set(water_consumption) - set(water_intensity)
+        for x in diff:
+            water_consumption.pop(x)
+
+        for process in ignore_list:
+            water_consumption.pop(process)
+            water_intensity.pop(process)
+        # x and y given as array_like objects
+        text = [x for x in water_consumption.keys()]
+
+        fig = px.scatter(x=water_consumption,y=water_intensity,text=text, log_y=False, log_x=True, \
+                        labels={'x':'Water consumption<br>kton CO2/year', \
+                        'y':'Water intensity <br>[kton of water/(kton of carbon X year) ]'},\
+                        width=width, height=height)
+        fig.update_traces(textposition='top center', marker={'size':10,'color':'green'})
+        fig.update_layout(font_family="Time New Roman", font_size=font_size)
+        fig.show()
