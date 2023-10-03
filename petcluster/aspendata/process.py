@@ -223,6 +223,14 @@ class Process(object):
             self.energy_use[steam[0]] = [duty_use* 8000 * 1E-6, mass_use]
             self.energy_production[steam[1]] = [duty_prod* 8000 * 1E-6, mass_prod]
 
+        # Load the total fired duty being utilized by the process
+        temp = 0
+        try:
+            for block in self.aspen.fired_heat['FIRINGH'].blocks:
+                temp += block.duty
+            self.energy["Fired heat"] = temp
+        except KeyError:
+            pass
 
         # Load the total electricity duty being utilized by the process
         temp = 0
@@ -270,22 +278,114 @@ class Process(object):
                 self.energy[refrig] = temp * 8000 * 1E-6
             except KeyError:
                 pass
+        
+        process_streams = feed_streams + outlet_streams
 
-
-        header = pd.MultiIndex.from_product([outlet_streams,['m_out','massflow','X']],
+        header = pd.MultiIndex.from_product([process_streams,['m_out','massflow','X']],
         names=['stream', 'type'])
         data_frame = pd.DataFrame(np.zeros([0,len(header)]),
                         columns=header)
 
+        for name in feed_streams:
+            count = 0
+            for comp, value in self.aspen.streams[name].massfrac.items():
+                if comp == 0:
+                    data_frame.loc[count,(name,'m_out')] = comp
+                    data_frame.loc[count,(name,'massflow')] = 0
+                    count += 1
+                else:
+                    data_frame.loc[count,(name,'m_out')] = comp
+                    data_frame.loc[count,(name,'massflow')] = \
+                    value * self.aspen.streams[name].massflow
+                    count += 1
+
+        for name in product_streams:
+            count = 0
+            for comp, value in self.aspen.streams[name].massfrac.items():
+                if comp == 0:
+                    data_frame.loc[count,(name,'m_out')] = comp
+                    data_frame.loc[count,(name,'massflow')] = 0
+                    count += 1
+                else:
+                    data_frame.loc[count,(name,'m_out')] = comp
+                    data_frame.loc[count,(name,'massflow')] = \
+                    value * self.aspen.streams[name].massflow
+                    count += 1
+
         for name in outlet_streams:
             count = 0
             for comp, value in self.aspen.streams[name].massfrac.items():
-                if value > 0.001:
+                if comp == 0:
+                    data_frame.loc[count,(name,'m_out')] = comp
+                    data_frame.loc[count,(name,'massflow')] = 0
+                    count += 1
+                else:
                     data_frame.loc[count,(name,'m_out')] = comp
                     data_frame.loc[count,(name,'massflow')] = \
                     value * self.aspen.streams[name].massflow
                     count += 1
         self.superstructure = data_frame
+
+
+    def collect_chp_data(self):
+        "Load the electricity and steam production for CHPs from Aspen Plus"
+        steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN'],
+        ['HPS','HPS-GEN'], ['HHPS','HHPS-GEN']]
+        
+        # Steam lower heating value in MJ/kg
+        steam_lhv = {
+            "HHPS": 1.96671347,
+            "HPS":  1.6324494,
+            "MPS":  1.87961281,
+            "LPS":  2.09677164,
+            "LLPS": 2.13536712
+        }
+
+        #Load steam CHP steam production
+        for steam in steam_types:
+            stream_name = "PS-"+steam[0]
+            try:
+                stream = self.aspen.streams[stream_name]
+                mass_prod = stream.massflow
+                duty_prod = stream.massflow * steam_lhv[steam[0]]
+
+            except KeyError:
+                continue
+
+            self.energy[steam[0]] -= duty_prod
+            self.steam_usage[steam[0]] -= mass_prod
+            self.energy_production[steam[1]] = [duty_prod, mass_prod]
+
+        #Load CHP electricity production
+        stream = self.aspen.streams["PS-PW"]
+        self.energy["Electricity"] = stream.power *3600*8000*1E-6
+
+
+    def collect_boiler_data(self):
+        "Load the steam production for Boilers from Aspen Plus"
+        steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN']]
+        
+        # Steam lower heating value in MJ/kg
+        steam_lhv = {
+            "MPS":  1.87961281,
+            "LPS":  2.09677164,
+            "LLPS": 2.13536712
+        }
+
+        #Load steam CHP steam production
+        for steam in steam_types:
+            stream_name = "PS-"+steam[0]
+            try:
+                stream = self.aspen.streams[stream_name]
+                mass_prod = stream.massflow
+                duty_prod = stream.massflow * steam_lhv[steam[0]]
+
+            except KeyError:
+                continue
+
+            self.energy[steam[0]] -= duty_prod
+            self.steam_usage[steam[0]] -= mass_prod
+            self.energy_production[steam[1]] = [duty_prod, mass_prod]
 
 
     def report(self, excel_file):
