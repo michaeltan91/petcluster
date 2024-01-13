@@ -112,7 +112,7 @@ class Network(object):
         self.numeric_network = numeric_network
 
 
-    def visualize_hairball(self, node_list="", ignore_list=""):
+    def visualize_hairball(self, node_list="", ignore_list="", draw=True):
 
         remove_list = []
         if node_list:
@@ -151,8 +151,11 @@ class Network(object):
 
         test_colors = [("C3" if node[1]=="Material" else ("C0" if node[1] =="Steam" else ("C1" if node[1] == "Electricity" else "black"))) for node in graph.nodes]
         test_colors[0] = "C1"
-        test_colors[2] = "C0"
+        test_colors[1] = "C0"
 
-        hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=True, color_list= test_colors,scale_by_size=False, legend=True)
-        plt.savefig("network.pdf",dpi=600)
-        plt.show()
+        if draw is True:
+            hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=draw, color_list= test_colors,scale_by_size=False, legend=True)
+            plt.savefig("network.pdf",dpi=600)
+            plt.show()
+        else:
+            return hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=draw, color_list= test_colors,scale_by_size=False, legend=True)

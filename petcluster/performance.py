@@ -2,6 +2,9 @@
 from collections import Counter
 import plotly.graph_objects as go
 import plotly.express as px
+import re
+import openpyxl
+
 from plotly.subplots import make_subplots
 import numpy as np
 
@@ -218,6 +221,284 @@ class Performance(object):
         }
         fig.show(config=config)
         fig.write_image("carbon_sankey.pdf")
+
+
+    def carbon_sankey_v2(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500,\
+                    fig_height=750, fig_pad=150, fig_thickness = 10, text_font = 30, bold=False,  \
+                    title=True, process_abrev = False, process_uid=False, print_excel=False):
+        '''Depicts all the carbon flows in the cluster in a sankey diagram'''
+        label = []
+
+        data = {}
+        data['source'] = []
+        data['target'] = []
+        data['value'] = []
+        data['color'] = []
+        data['label'] = []
+
+        node_color = []
+        counter = 0
+
+        if process_abrev is True:
+            if process_uid is True:
+                process_name = "source"
+            else:
+                process_name = 'name_abbrev'
+        else:
+            process_name = 'name'
+
+
+        for link in self.multiplex.get_edges():
+            if not process_list:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
+                    stream = self.multiplex[link[0]][link[1]][link[2]]
+                    carbon_content = stream['carbon_content']*stream['mass_flow_rate']
+
+                    # if carbon_content >= cutoff and link[0][0] not in ignore_list:
+                    if link[0][0] not in ignore_list:
+                        try:
+                            name_source = self.nodes[link[0][0]][process_name]
+                        except KeyError:
+                            try:
+                                name_source = self.nodes[link[0][0]]['name']
+                            except KeyError:
+                                name_source = link[0][0]
+
+                        try:
+                            name_target = self.nodes[link[1][0]][process_name]
+                        except KeyError:
+                            try:
+                                name_target = self.nodes[link[1][0]]['name']
+                            except KeyError:
+                                name_target = link[1][0]
+
+                        if name_target == 'Stack':
+                            name_target = 'Environment'
+
+                        if name_source in label and name_target in label:
+                            indices1 = [i for i, x in enumerate(data['source']) \
+                                        if x == label.index(name_source)]
+                            indices2 = [i for i, x in enumerate(data['target']) \
+                                        if x == label.index(name_target)]
+                            intersect=set(indices1).intersection(indices2)
+                            if len(intersect) > 0:
+                                data['value'][intersect.pop()] += carbon_content
+                            else:
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    node_color.append(self.get_process_color(link[0][0]))
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    node_color.append(self.get_process_color(link[1][0]))
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(carbon_content)
+
+                        else:
+                            if name_source not in label:
+                                label.append(name_source)
+                                data['source'].append(counter)
+                                node_color.append(self.get_process_color(link[0][0]))
+                                counter += 1
+                            else:
+                                label.index(name_source)
+                                data['source'].append(label.index(name_source))
+
+
+                            if name_target not in label:
+                                label.append(name_target)
+                                data['target'].append(counter)
+                                node_color.append(self.get_process_color(link[1][0]))
+                                counter += 1
+                            else:
+                                data['target'].append(label.index(name_target))
+
+                            data['value'].append(carbon_content)
+                    temp = "rgba(0,0,96,0.2)"
+                    data['color'].append(temp)
+
+            else:
+                if link[0][1] == 'Material' and link[1][1] == 'Material':
+                    if link[0][0] in process_list or link[1][0] in process_list:
+
+                        stream = self.multiplex[link[0]][link[1]][link[2]]
+                        carbon_content = stream['carbon_content']*stream['mass_flow_rate']
+
+                        # if carbon_content >= cutoff and link[0][0] not in ignore_list:
+                        if link[0][0] not in ignore_list:
+
+                            try:
+                                name_source = self.nodes[link[0][0]][process_name]
+                            except KeyError:
+                                try:
+                                    name_source = self.nodes[link[0][0]]['name']
+                                except KeyError:
+                                    name_source = link[0][0]
+
+                            try:
+                                name_target = self.nodes[link[1][0]][process_name]
+                            except KeyError:
+                                try:
+                                    name_target = self.nodes[link[1][0]]['name']
+                                except KeyError:
+                                    name_target = link[1][0]
+
+                            if name_target == 'Stack':
+                                name_target = 'Environment'
+
+                            if name_source in label and name_target in label:
+                                indices1 = [i for i, x in enumerate(data['source']) \
+                                            if x == label.index(name_source)]
+                                indices2 = [i for i, x in enumerate(data['target']) \
+                                            if x == label.index(name_target)]
+                                intersect=set(indices1).intersection(indices2)
+                                if len(intersect) > 0:
+                                    data['value'][intersect.pop()] += carbon_content
+
+                                else:
+                                    if name_source not in label:
+                                        label.append(name_source)
+                                        data['source'].append(counter)
+                                        node_color.append(self.get_process_color(link[0][0]))
+                                        counter += 1
+                                    else:
+                                        label.index(name_source)
+                                        data['source'].append(label.index(name_source))
+
+                                    if name_target not in label:
+                                        label.append(name_target)
+                                        data['target'].append(counter)
+                                        node_color.append(self.get_process_color(link[1][0]))
+                                        counter += 1
+                                    else:
+                                        data['target'].append(label.index(name_target))
+
+                                    data['value'].append(carbon_content)
+
+                            else:
+
+                                if name_source not in label:
+                                    label.append(name_source)
+                                    data['source'].append(counter)
+                                    node_color.append(self.get_process_color(link[0][0]))
+                                    counter += 1
+                                else:
+                                    label.index(name_source)
+                                    data['source'].append(label.index(name_source))
+
+
+                                if name_target not in label:
+                                    label.append(name_target)
+                                    data['target'].append(counter)
+                                    node_color.append(self.get_process_color(link[1][0]))
+                                    counter += 1
+                                else:
+                                    data['target'].append(label.index(name_target))
+
+                                data['value'].append(carbon_content)
+                        temp = "rgba(0,0,96,0.2)"
+                        data['color'].append(temp)
+        data["color"] = []
+        for src in data["source"]:
+            data["color"].append(node_color[src].replace("0.8","0.55"))
+        for i in range(0,len(data["value"]),1):
+            if data["value"][i] <= cutoff:
+                data["value"][i] = 0 
+        if bold is True:
+            label = ["<b>"+name for name in label]
+
+        fig = go.Figure(data=[go.Sankey(
+            valueformat = ".2f",
+            valuesuffix = "ktonne/oper-year",
+            node = dict(
+            pad = fig_pad,
+            thickness = fig_thickness,
+            line = dict(color = "black", width = 1.5),
+            label = label,
+            color = node_color
+            ),
+            link = data
+        )])
+
+        if title is True:
+            fig.update_layout(title_text="Carbon flows", font_size=text_font,
+            font_family = "Times New Roman",
+            autosize = False,
+            width = fig_width,
+            height = fig_height)
+        else:
+            fig.update_layout(font_size=text_font,
+            font_family = "Times New Roman",
+            autosize = False,
+            width = fig_width,
+            height = fig_height)
+
+        config = {
+        'toImageButtonOptions': { 'height': None, 'width': None}
+        }
+        fig.show(config=config)
+        fig.write_image("test_carbon_sankey.pdf")
+
+        if print_excel is True:
+            # Open Excel
+            sheet_name = "Sheet 1"
+            work_book = openpyxl.load_workbook("sankey_data.xlsx")
+
+            # if the sheet doesn't exist, create a new sheet
+            try:
+                sheet = work_book[sheet_name]
+                work_book.remove(sheet)
+                sheet = work_book.create_sheet(sheet_name)
+            except KeyError:
+                sheet = work_book.create_sheet(sheet_name)
+
+            # Print degree centrality
+            sheet.cell(row = 1, column = 1).value = "Source"
+            sheet.cell(row = 1, column = 2).value = "Target"
+            sheet.cell(row = 1, column = 3).value = "Mass flow of C [kt/y]"
+            sheet.cell(row = 1, column = 4).value = "Color"
+            for i in range(0,len(data["source"]),1):
+                sheet.cell(row = 2+i, column = 1).value = label[data["source"][i]]
+                sheet.cell(row = 2+i, column = 2).value = label[data["target"][i]]
+                sheet.cell(row = 2+i, column = 3).value = data["value"][i]
+                sheet.cell(row = 2+i, column = 4).value = data["color"][i]
+
+            work_book.save("sankey_data.xlsx")
+
+
+
+    def get_process_color(self, uid):
+        sub_cluster_colors = {
+                "A": "rgba(123,123,123,0.8)",
+                "B": "rgba(0,176,80,0.8)",
+                "CB": "rgba(216,216,216,0.8)",
+                "CL": "rgba(91,155,213,0.8)",
+                "E": "rgba(48,84,151,0.8)",
+                "M": "rgba(255,192,0,0.8)",
+                "N": "rgba(0,127,127,0.8)",
+                "O": "rgba(112,48,160,0.8)",
+                "P": "rgba(192,0,0,0.8)",
+                "U": "rgba(83,129,53,0.8)"
+            }
+        if uid in self.process_nodes:
+            sub_id = re.findall('\d*\D+',uid)
+            color = sub_cluster_colors[sub_id[0]]
+            return color
+        else:
+            if uid == "MRKT":
+                return "rgba(140, 86, 75, 0.8)"
+            else:
+                return "rgba(127, 127, 127, 0.8)"
 
 
     def material_sankey(self, process_list="", ignore_list="", cutoff=0.1, fig_width=1500,\
@@ -1247,7 +1528,7 @@ class Performance(object):
         fig.show(config=config)
 
 
-    def scatter_steam(self, ignore_list="", height=1000, width =1000, font_size=10):
+    def scatter_steam(self, ignore_list="", height=1000, width =1000, font_size=10, print_excel=False):
         """Method for plotting the steam intensity over the steam consumption in a scatter plot"""
         steam_consumption = {}
         steam_intensity = {}
@@ -1315,6 +1596,32 @@ class Performance(object):
         fig.show()
         fig.write_image("scatter_steam.pdf")
 
+        if print_excel is True:
+            # Open Excel
+            sheet_name = "Sheet 1"
+            work_book = openpyxl.load_workbook("scatter_steam_data.xlsx")
+
+            # if the sheet doesn't exist, create a new sheet
+            try:
+                sheet = work_book[sheet_name]
+                work_book.remove(sheet)
+                sheet = work_book.create_sheet(sheet_name)
+            except KeyError:
+                sheet = work_book.create_sheet(sheet_name)
+
+            i = 0
+            # Print degree centrality
+            sheet.cell(row = 1, column = 1).value = "Node"
+            sheet.cell(row = 1, column = 2).value = "Steam consumption [TJ/y]"
+            sheet.cell(row = 1, column = 3).value = "Steam intensity [TJ/(tonne of C * y)]"
+            for key, value in steam_consumption.items():
+                sheet.cell(row = 2+i, column=1).value = key
+                sheet.cell(row = 2+i, column=2).value = value
+                sheet.cell(row = 2+i, column=3).value = steam_intensity[key]
+                i+=1
+
+            work_book.save("scatter_steam_data.xlsx")
+
 
     def scatter_co2(self, ignore_list="", height=1000, width=1000, font_size=10):
         """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
@@ -1375,7 +1682,7 @@ class Performance(object):
 
 
 
-    def scatter_co2_2(self, ignore_list="", height=1000, width=1000, font_size=10):
+    def scatter_co2_2(self, ignore_list="", height=1000, width=1000, font_size=10, print_excel=False):
 
         """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
 
@@ -1501,6 +1808,39 @@ class Performance(object):
         fig.write_image("scatter_co2_2.pdf")
         fig.show()
 
+        if print_excel is True:
+            # Open Excel
+            sheet_name = "Sheet 1"
+            work_book = openpyxl.load_workbook("scatter_co2_data.xlsx")
+
+            # if the sheet doesn't exist, create a new sheet
+            try:
+                sheet = work_book[sheet_name]
+                work_book.remove(sheet)
+                sheet = work_book.create_sheet(sheet_name)
+            except KeyError:
+                sheet = work_book.create_sheet(sheet_name)
+
+            # Print co2 emissions and intensity of chemical processes
+            sheet.cell(row = 1, column = 1).value = "Node"
+            sheet.cell(row = 1, column = 2).value = "CO2 emission [kt CO2/y]"
+            sheet.cell(row = 1, column = 3).value = "CO2 intensity [kt CO2/(kt C * y)]"
+            for i in range(0,len(co2_emission),1):
+                sheet.cell(row = 2+i, column=1).value = text1[i]
+                sheet.cell(row = 2+i, column=2).value = co2_emission[i]
+                sheet.cell(row = 2+i, column=3).value = co2_intensity[i]
+            
+            # Print co2 emissions and intensity of utility processes
+            sheet.cell(row = 1, column = 6).value = "Node"
+            sheet.cell(row = 1, column = 7).value = "CO2 emission [kt/y]"
+            sheet.cell(row = 1, column = 8).value = "CO2 intensity [kt/(TJ steam * y)]"
+            for j in range(0,len(co2_emission_util),1):
+                sheet.cell(row = 2+j, column=6).value = text2[j]
+                sheet.cell(row = 2+j, column=7).value = co2_emission_util[j]
+                sheet.cell(row = 2+j, column=8).value = co2_intensity_util[j]
+
+            work_book.save("scatter_co2_data.xlsx")
+
 
     def scatter_water(self, ignore_list='', height=1000, width=1000, font_size=10):
 
@@ -1558,3 +1898,72 @@ class Performance(object):
         fig.update_traces(textposition='top center', marker={'size':10,'color':'green'})
         fig.update_layout(font_family="Time New Roman", font_size=font_size)
         fig.show()
+
+
+    def scatter_exergy(self, ignore_list="", height=1000, width =1000, font_size=10):
+        """Method for plotting the steam intensity over the steam consumption in a scatter plot"""
+        steam_consumption = {}
+        steam_intensity = {}
+
+        for node, node_value in self.process_nodes.items():
+            process_energy = 0
+            for name, value in node_value['steam_usage'].items():
+                if value <= 0:
+                    continue
+                if name == 'LLPS':
+                    process_energy += value * 1.970357667
+                if name == 'LPS':
+                    process_energy += value * 1.611524627
+                if name == 'MPS':
+                    process_energy += value * 1.495622128
+                if name == 'HPS':
+                    process_energy += value * 1.298335114
+                if name == "HHPS":
+                    process_energy += value * 1.24563498
+
+            process_carbon = 0
+
+            for link in self.multiplex[node,'Material']:
+                if link[0] == node:
+                    continue
+                if "U" in link[0]:
+                    # Ignore the carbon in streams send to utility units that is used as energy source
+                    continue
+                if link[0] in self.process_nodes.keys():
+                    for stream in self.multiplex[node,'Material'][link].values():
+                        process_carbon += stream['carbon_flow_rate']
+                if link[0] == 'PROD':
+                    for stream in self.multiplex[node,'Material'][link].values():
+                        process_carbon += stream['carbon_flow_rate']
+
+            if process_energy >= 0.1:
+                steam_consumption[node] = process_energy
+            
+            try:
+                if process_carbon >= 0.1:
+                    steam_intensity[node] = process_energy/process_carbon
+            except ZeroDivisionError:
+                pass
+        
+        # Remove processes that are not in both the steam consumption and steam intensity lists
+        diff = set(steam_intensity) - set(steam_consumption)
+        for x in diff:
+            steam_intensity.pop(x)
+        diff = set(steam_consumption) - set(steam_intensity)
+        for x in diff:
+            steam_consumption.pop(x)
+        
+        for process in ignore_list:
+            steam_consumption.pop(process)
+            steam_intensity.pop(process)
+        # x and y given as array_like objects
+        text = [x for x in steam_consumption.keys()]
+
+        fig = px.scatter(x=steam_consumption,y=steam_intensity,text=text, log_y=True, log_x=True,\
+                        labels={'x':'Exergy<br>TJ/year',\
+                        'y':'Exergy intensity <br>[TJ/(ktonne of carbon X year) ]'},\
+                        width=width, height=height)
+        fig.update_traces(textposition='top center', marker={'size':10})
+        fig.update_layout(font_family="Time New Roman", font_size=font_size)
+        fig.show()
+        fig.write_image("scatter_exergy.pdf")
