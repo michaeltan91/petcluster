@@ -177,28 +177,55 @@ class Multiplex(object):
                 self.process_nodes[uid] = self.nodes[uid]
 
 
-    def load_data_json(self, material_file):
-        """"""
-        import json
+    def load_data_json(self, material_file, steam_file, electricity_file, node_file):
+        """Loads the material, steam and electricity link and node data from the json input files"""
+        # Load link data 
         fileObject = open(material_file, "r")
         jsonContent = fileObject.read()
         self.link_list = json.loads(jsonContent)
-
-        fileObject = open("node_data.json", "r")
+        self.remove_excess_material_links()
+        # Load steam links
+        fileObject = open(steam_file, "r")
         jsonContent = fileObject.read()
+        self.energy_link_list = json.loads(jsonContent)
+        # Load electricity links
+        fileObject = open(electricity_file, "r")
+        jsonContent = fileObject.read()
+        self.electricity_link_list = json.loads(jsonContent)
 
+        # Load node data
+        fileObject = open(node_file, "r")
+        jsonContent = fileObject.read()
         data = json.loads(jsonContent)
         self.nodes = data['nodes']
         self.performance.nodes = self.nodes
         self.network.nodes = self.nodes
-
         self.process_nodes = data['process_nodes']
         self.performance.process_nodes = self.process_nodes
         self.network.process_nodes=self.process_nodes
-
         self.background_nodes = data['background_nodes']
         self.performance.background_nodes = self.background_nodes
 
+        # Load link data into the model
+        self.multiplex.add_edges(self.link_list)
+        self.multiplex.add_edges(self.energy_link_list)
+        self.multiplex.add_edges(self.electricity_link_list)
+        #self.multiplex._couple_all_edges()
+        self.couple_nodes()
+
+    
+    def couple_nodes(self):
+        
+        nodes = {node[0] for node in self.multiplex.core_network.nodes()}
+        layers = {node[1] for node in self.multiplex.core_network.nodes()}
+
+        for node in nodes:
+            for layer_1 in layers:
+                for layer_2 in layers:
+                    if layer_1 != layer_2:
+                        node_couple=(node,layer_1),(node,layer_2)
+                        self.multiplex.core_network.add_edge(node_couple[0],node_couple[1],type="coupling",weight=1)
+        
 
     def load_energy(self, agg_steam = True):
         """Load steam mapping from the energy table"""
@@ -314,7 +341,8 @@ class Multiplex(object):
                 try:
                     self.link_list.remove(duplicate)
                 except ValueError:
-                    warnings.warn(f"{duplicate} is not part of the list of links")
+                    pass
+                    #warnings.warn(f"{duplicate} is not part of the list of links")
 
 
     def remove_duplicate_links(self):
@@ -614,6 +642,7 @@ class Multiplex(object):
             "equipment_cost": process_data['equipment_cost'],
             "company": process_data['company'],
             "site": process_data['site'],
+            "CAPEX": process_data["CAPEX"],
             "harbor_access": 1,
             "process splittable": 1,
             "opex": 1,
