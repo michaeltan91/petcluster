@@ -1,9 +1,9 @@
 '''Contains the performance calculation and visualization'''
 from collections import Counter
-import plotly.graph_objects as go
-import plotly.express as px
 import re
 import openpyxl
+import plotly.graph_objects as go
+import plotly.express as px
 
 from plotly.subplots import make_subplots
 import numpy as np
@@ -413,7 +413,7 @@ class Performance(object):
             data["color"].append(node_color[src].replace("0.8","0.55"))
         for i in range(0,len(data["value"]),1):
             if data["value"][i] <= cutoff:
-                data["value"][i] = 0 
+                data["value"][i] = 0
         if bold is True:
             label = ["<b>"+name for name in label]
 
@@ -478,6 +478,7 @@ class Performance(object):
 
 
     def get_process_color(self, uid):
+        """Get the process colors based on their subcluster"""
         sub_cluster_colors = {
                 "A": "rgba(123,123,123,0.8)",
                 "B": "rgba(0,176,80,0.8)",
@@ -491,7 +492,7 @@ class Performance(object):
                 "U": "rgba(83,129,53,0.8)"
             }
         if uid in self.process_nodes:
-            sub_id = re.findall('\d*\D+',uid)
+            sub_id = re.findall('\\d*\\D+',uid)
             color = sub_cluster_colors[sub_id[0]]
             return color
         else:
@@ -1501,34 +1502,8 @@ class Performance(object):
         #"""fig.write_image("figures/energy_process.svg")"""
 
 
-    def emissions_cluster(self, ignore_list='',normalized = False):
-
-        if normalized is True:
-
-            figure_title = 'Cluster total emission'
-
-        else:
-
-            figure_title = 'Cluster emission intensity per ktonne of carbon product'
-
-        fig = go.Figure(data=[go.Pie(labels=labels,
-                             values=values)])
-        fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=30,
-                        marker=dict(colors=colors, line=dict(color='#000000', width=2)))
-        fig.update_layout(title_text = figure_title,
-                        autosize=False,
-                        width=1000,
-                        height=1000,
-                        font=dict(size=30),
-                        legend_font=dict(size=28))
-
-        config = {
-        'toImageButtonOptions': { 'height': None, 'width': None, }
-        }
-        fig.show(config=config)
-
-
-    def scatter_steam(self, ignore_list="", height=1000, width =1000, font_size=10, print_excel=False):
+    def scatter_steam(self, ignore_list="", height=1000, width =1000, font_size=10, \
+                      print_excel=False):
         """Method for plotting the steam intensity over the steam consumption in a scatter plot"""
         steam_consumption = {}
         steam_intensity = {}
@@ -1555,7 +1530,8 @@ class Performance(object):
                 if link[0] == node:
                     continue
                 if "U" in link[0]:
-                    # Ignore the carbon in streams send to utility units that is used as energy source
+                    # Ignore the carbon in streams send to utility units that is
+                    # used as energy source
                     continue
                 if link[0] in self.process_nodes.keys():
                     for stream in self.multiplex[node,'Material'][link].values():
@@ -1566,13 +1542,13 @@ class Performance(object):
 
             if process_energy >= 0.1:
                 steam_consumption[node] = process_energy
-            
+
             try:
                 if process_carbon >= 0.1:
                     steam_intensity[node] = process_energy/process_carbon
             except ZeroDivisionError:
                 pass
-        
+
         # Remove processes that are not in both the steam consumption and steam intensity lists
         diff = set(steam_intensity) - set(steam_consumption)
         for x in diff:
@@ -1580,12 +1556,12 @@ class Performance(object):
         diff = set(steam_consumption) - set(steam_intensity)
         for x in diff:
             steam_consumption.pop(x)
-        
+
         for process in ignore_list:
             steam_consumption.pop(process)
             steam_intensity.pop(process)
         # x and y given as array_like objects
-        text = [x for x in steam_consumption.keys()]
+        text = [x for x in steam_consumption]
 
         fig = px.scatter(x=steam_consumption,y=steam_intensity,text=text, log_y=True, log_x=True,\
                         labels={'x':'Steam consumption<br>TJ/year',\
@@ -1638,7 +1614,8 @@ class Performance(object):
                     if link[0] == node:
                         continue
                     if "U" in link[0]:
-                        # Ignore the carbon in streams send to utility units that is used as energy source
+                        # Ignore the carbon in streams send to utility units that is used
+                        # as energy source
                         continue
                     if link[0] in self.process_nodes.keys():
                         for stream in self.multiplex[node,'Material'][link].values():
@@ -1669,7 +1646,7 @@ class Performance(object):
             co2_emission.pop(process)
             co2_intensity.pop(process)
         # x and y given as array_like objects
-        text = [x for x in co2_emission.keys()]
+        text = [x for x in co2_emission]
 
         fig = px.scatter(x=co2_emission,y=co2_intensity,text=text, log_y=False, log_x=True, \
                         labels={'x':'CO2 emission<br>kton CO2/year', \
@@ -1682,7 +1659,8 @@ class Performance(object):
 
 
 
-    def scatter_co2_2(self, ignore_list="", height=1000, width=1000, font_size=10, print_excel=False):
+    def scatter_co2_2(self, ignore_list="", height=1000, width=1000, \
+                      font_size=10, print_excel=False):
 
         """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
 
@@ -1699,7 +1677,8 @@ class Performance(object):
                     if link[0] == node:
                         continue
                     if "U" in link[0]:
-                        # Ignore the carbon in streams send to utility units that is used as energy source
+                        # Ignore the carbon in streams send to utility units that
+                        # is used as energy source
                         continue
                     if link[0] in self.process_nodes.keys():
                         for stream in self.multiplex[node,'Material'][link].values():
@@ -1716,8 +1695,9 @@ class Performance(object):
                         co2_intensity[node] = emission/process_carbon
                 except ZeroDivisionError:
                     pass
-            
-            elif "U3" in node or "U5" in node or "U6" in node or "U7" in node or "U8" in node or "U9" in node:
+
+            elif "U3" in node or "U5" in node or "U6" in node or "U7" in node \
+                or "U8" in node or "U9" in node:
                 if "U3" in node:
                     util_name = "U3"
                 elif "U5" in node:
@@ -1729,16 +1709,16 @@ class Performance(object):
                 elif "U8" in node:
                     util_name = "U8"
                 else:
-                    util_name = "U9" 
-                
+                    util_name = "U9"
+
                 energy = 0
-                for steam_type, value in self.process_nodes[node]["energy_production"].items():
+                for _steam_type, value in self.process_nodes[node]["energy_production"].items():
                     energy += value[0]
                 emission = self.co2_process(node)
 
                 if util_name in co2_emission_util:
                     co2_emission_util[util_name] += emission
-                else: 
+                else:
                     co2_emission_util[util_name] = emission
 
                 if util_name in co2_intensity_util:
@@ -1767,7 +1747,7 @@ class Performance(object):
             co2_emission.pop(process)
             co2_intensity.pop(process)
         # x and y given as array_like objects
-        text1 = [x for x in co2_emission.keys()]
+        text1 = [x for x in co2_emission]
 
         diff = set(co2_intensity_util) - set(co2_emission_util)
         for x in diff:
@@ -1781,7 +1761,7 @@ class Performance(object):
             co2_emission_util.pop(process)
             co2_intensity_util.pop(process)
         # x and y given as array_like objects
-        text2 = [x for x in co2_emission_util.keys()]
+        text2 = [x for x in co2_emission_util]
 
         co2_emission = [x for x in co2_emission.values()]
         co2_intensity = [x for x in co2_intensity.values()]
@@ -1790,13 +1770,15 @@ class Performance(object):
 
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(go.Scatter(x=co2_emission, y=co2_intensity, text=text1, mode="markers+text",\
-                                textposition="top center", marker_size=10, name= "Chemical processes"),secondary_y=False)
-        fig.add_trace(go.Scatter(x=co2_emission_util, y=co2_intensity_util, text=text2, mode="markers+text",\
-                                textposition="top center", marker_size=10, name="CHPs and boilers", marker_symbol="diamond"),secondary_y=True)
-        fig.update_layout(font_family = "Times New Roman", height=height, width=width,font_size=font_size,\
-                        xaxis_title="CO2 emission <br> [ktonne of CO2 / year]",\
-                        yaxis_title="CO2 intensity <br> [ktonne of CO2 / ktonne of carbon product]",\
-                        yaxis2_title="CO2 intensity <br> [ktonne of CO2 / TJ of steam]",
+                                textposition="top center", marker_size=10, \
+                                name= "Chemical processes"),secondary_y=False)
+        fig.add_trace(go.Scatter(x=co2_emission_util, y=co2_intensity_util, text=text2, \
+                                mode="markers+text",textposition="top center", marker_size=10, \
+                                name="CHPs and boilers", marker_symbol="diamond"),secondary_y=True)
+        fig.update_layout(font_family = "Times New Roman", height=height, width=width,\
+                        font_size=font_size,xaxis_title="CO2 emission <br> [ktonne of CO2 / year]",\
+                        yaxis_title="CO2 intensity<br>[ktonne of CO2 / ktonne of carbon product]",\
+                        yaxis2_title="CO2 intensity<br>[ktonne of CO2 / TJ of steam]",
                         legend=dict(
                         yanchor="top",
                         y=0.99,
@@ -1829,7 +1811,7 @@ class Performance(object):
                 sheet.cell(row = 2+i, column=1).value = text1[i]
                 sheet.cell(row = 2+i, column=2).value = co2_emission[i]
                 sheet.cell(row = 2+i, column=3).value = co2_intensity[i]
-            
+
             # Print co2 emissions and intensity of utility processes
             sheet.cell(row = 1, column = 6).value = "Node"
             sheet.cell(row = 1, column = 7).value = "CO2 emission [kt/y]"
@@ -1843,7 +1825,7 @@ class Performance(object):
 
 
     def scatter_water(self, ignore_list='', height=1000, width=1000, font_size=10):
-
+        """Create a scatter plot of the water consumption of the cluster"""
         water_consumption = {}
         water_intensity = {}
         water_use = {}
@@ -1856,7 +1838,8 @@ class Performance(object):
                     if link[0] == node:
                         continue
                     if "U" in link[0]:
-                        # Ignore the carbon in streams send to utility units that is used as energy source
+                        # Ignore the carbon in streams send to utility units that
+                        # is used as energy source
                         continue
                     if link[0] in self.process_nodes.keys():
                         for stream in self.multiplex[node,'Material'][link].values():
@@ -1889,7 +1872,7 @@ class Performance(object):
             water_consumption.pop(process)
             water_intensity.pop(process)
         # x and y given as array_like objects
-        text = [x for x in water_consumption.keys()]
+        text = [x for x in water_consumption]
 
         fig = px.scatter(x=water_consumption,y=water_intensity,text=text, log_y=False, log_x=True, \
                         labels={'x':'Water consumption<br>kton CO2/year', \
@@ -1927,7 +1910,8 @@ class Performance(object):
                 if link[0] == node:
                     continue
                 if "U" in link[0]:
-                    # Ignore the carbon in streams send to utility units that is used as energy source
+                    # Ignore the carbon in streams send to utility units that
+                    # is used as energy source
                     continue
                 if link[0] in self.process_nodes.keys():
                     for stream in self.multiplex[node,'Material'][link].values():
@@ -1938,13 +1922,13 @@ class Performance(object):
 
             if process_energy >= 0.1:
                 steam_consumption[node] = process_energy
-            
+
             try:
                 if process_carbon >= 0.1:
                     steam_intensity[node] = process_energy/process_carbon
             except ZeroDivisionError:
                 pass
-        
+
         # Remove processes that are not in both the steam consumption and steam intensity lists
         diff = set(steam_intensity) - set(steam_consumption)
         for x in diff:
@@ -1952,12 +1936,12 @@ class Performance(object):
         diff = set(steam_consumption) - set(steam_intensity)
         for x in diff:
             steam_consumption.pop(x)
-        
+
         for process in ignore_list:
             steam_consumption.pop(process)
             steam_intensity.pop(process)
         # x and y given as array_like objects
-        text = [x for x in steam_consumption.keys()]
+        text = [x for x in steam_consumption]
 
         fig = px.scatter(x=steam_consumption,y=steam_intensity,text=text, log_y=True, log_x=True,\
                         labels={'x':'Exergy<br>TJ/year',\

@@ -179,24 +179,24 @@ class Multiplex(object):
 
     def load_data_json(self, material_file, steam_file, electricity_file, node_file):
         """Loads the material, steam and electricity link and node data from the json input files"""
-        # Load link data 
-        fileObject = open(material_file, "r")
-        jsonContent = fileObject.read()
-        self.link_list = json.loads(jsonContent)
+        # Load link data
+        file_object = open(material_file, "r", encoding="utf-8")
+        json_content = file_object.read()
+        self.link_list = json.loads(json_content)
         self.remove_excess_material_links()
         # Load steam links
-        fileObject = open(steam_file, "r")
-        jsonContent = fileObject.read()
-        self.energy_link_list = json.loads(jsonContent)
+        file_object = open(steam_file, "r", encoding="utf-8")
+        json_content = file_object.read()
+        self.energy_link_list = json.loads(json_content)
         # Load electricity links
-        fileObject = open(electricity_file, "r")
-        jsonContent = fileObject.read()
-        self.electricity_link_list = json.loads(jsonContent)
+        file_object = open(electricity_file, "r", encoding="utf-8")
+        json_content = file_object.read()
+        self.electricity_link_list = json.loads(json_content)
 
         # Load node data
-        fileObject = open(node_file, "r")
-        jsonContent = fileObject.read()
-        data = json.loads(jsonContent)
+        file_object = open(node_file, "r", encoding="utf-8")
+        json_content = file_object.read()
+        data = json.loads(json_content)
         self.nodes = data['nodes']
         self.performance.nodes = self.nodes
         self.network.nodes = self.nodes
@@ -213,9 +213,9 @@ class Multiplex(object):
         #self.multiplex._couple_all_edges()
         self.couple_nodes()
 
-    
+
     def couple_nodes(self):
-        
+        """Couples identical nodes across the layers"""
         nodes = {node[0] for node in self.multiplex.core_network.nodes()}
         layers = {node[1] for node in self.multiplex.core_network.nodes()}
 
@@ -224,8 +224,9 @@ class Multiplex(object):
                 for layer_2 in layers:
                     if layer_1 != layer_2:
                         node_couple=(node,layer_1),(node,layer_2)
-                        self.multiplex.core_network.add_edge(node_couple[0],node_couple[1],type="coupling",weight=1)
-        
+                        self.multiplex.core_network.add_edge(node_couple[0],node_couple[1],\
+                                                             type="coupling",weight=1)
+
 
     def load_energy(self, agg_steam = True):
         """Load steam mapping from the energy table"""
@@ -428,8 +429,6 @@ class Multiplex(object):
             return duplicate_list
         if abs(link1['pressure']-link2['pressure'])/link1['pressure'] > 0.0001:
             return duplicate_list
-        
-
         duplicate_list.append(link2)
         return duplicate_list
 
@@ -648,8 +647,6 @@ class Multiplex(object):
             "opex": 1,
             "stream_table": aspendata.superstructure
         }
-        
-
         return node_dict
 
 

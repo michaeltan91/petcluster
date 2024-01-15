@@ -51,15 +51,15 @@ class NaturalGasManual(object):
 
         # The lower heating value of the natural gas mixture was calculated in Aspen Plus at
         # 15C and P=1,02 bar
-        LHV = 37809.49 # kJ/kg
+        lhv = 37809.49 # kJ/kg
         self.uid = uid
         # The natural gas utility usage is taken from the mass flowrate of the natural gas stream
         # in the aspen simulation
         self.usage = ng_stream.massflow
-        # The duty of the natural gas combustion is calculated from the lower heating value (LHV)
+        # The duty of the natural gas combustion is calculated from the lower heating value (lhv)
         # of the natural gas mixture at 15C.
-        self.duty = self.usage * 1E6 / 8000 * LHV * 1E-3
-        
+        self.duty = self.usage * 1E6 / 8000 * lhv * 1E-3
+
 
 
 class ElectricityManual(object):
@@ -71,8 +71,8 @@ class ElectricityManual(object):
 
 
 class HighTemperatureHeat(object):
+    """Manual high temperature heat utility class"""
 
     def __init__(self, uid, heatstream):
         self.uid = uid
         self.duty = heatstream.duty
-

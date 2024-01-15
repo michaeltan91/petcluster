@@ -278,7 +278,7 @@ class Process(object):
                 self.energy[refrig] = temp * 8000 * 1E-6
             except KeyError:
                 pass
-        
+
         process_streams = feed_streams + outlet_streams
 
         header = pd.MultiIndex.from_product([process_streams,['m_out','massflow','X']],
@@ -331,7 +331,7 @@ class Process(object):
         "Load the electricity and steam production for CHPs from Aspen Plus"
         steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN'],
         ['HPS','HPS-GEN'], ['HHPS','HHPS-GEN']]
-        
+
         # Steam lower heating value in MJ/kg
         steam_lhv = {
             "HHPS": 1.96671347,
@@ -364,7 +364,7 @@ class Process(object):
     def collect_boiler_data(self):
         "Load the steam production for Boilers from Aspen Plus"
         steam_types = [['LLPS','LLPS-GEN'], ['LPS','LPS-GEN'],['MPS','MPS-GEN']]
-        
+
         # Steam lower heating value in MJ/kg
         steam_lhv = {
             "MPS":  1.87961281,

@@ -64,7 +64,8 @@ class Network(object):
             ygap=1,
             colorscale = 'OrRd'
         ))
-        fig.update_traces(colorbar_tickmode="auto",colorbar_ticklabelstep=2,selector=dict(type='heatmap'))
+        fig.update_traces(colorbar_tickmode="auto",colorbar_ticklabelstep=2,\
+                          selector=dict(type='heatmap'))
         fig.update_xaxes(side="top", tickangle=-90)
         fig.update_yaxes(autorange="reversed")
         fig.update_layout(**kwargs)
@@ -72,6 +73,7 @@ class Network(object):
 
 
     def visualize_adjacency_matrix_combined(self, weighted =False, **kwargs):
+        """Visualizes the combined adjacency matrix of all three combined layers"""
         layer_list = ["Material", "Steam", "Electricity"]
         weight_options = {
             "Material":"carbon_flow_rate",
@@ -103,17 +105,18 @@ class Network(object):
         fig.update_xaxes(side="top", tickangle=-90)
         fig.update_yaxes(autorange="reversed")
         fig.update_layout(**kwargs, coloraxis={"colorscale":"OrRd"})
-        #fig.update_traces(colorbar_tickmode="auto",colorbar_ticklabelstep=4,selector=dict(type='heatmap'))
         if weighted is True:
-            fig.update_traces(colorbar_tickmode="auto",colorbar_tick0=0,colorbar_dtick=1 ,selector=dict(type='heatmap'))
+            fig.update_traces(colorbar_tickmode="auto",colorbar_tick0=0,colorbar_dtick=1 ,\
+                              selector=dict(type='heatmap'))
         else:
-            fig.update_traces(colorbar_tickmode="auto",colorbar_tick0=0,colorbar_dtick="L1.0" ,selector=dict(type='heatmap'))
+            fig.update_traces(colorbar_tickmode="auto",colorbar_tick0=0,colorbar_dtick="L1.0" ,\
+                              selector=dict(type='heatmap'))
         fig.show()
         self.numeric_network = numeric_network
 
 
     def visualize_hairball(self, node_list="", ignore_list="", draw=True):
-
+        """Visualizes the multiplex graph as a hairball"""
         remove_list = []
         if node_list:
             temp = list(x for x in self.multiplex.get_nodes())
@@ -130,15 +133,15 @@ class Network(object):
             if ignore_list:
                 for node in temp:
                     if node[0] in ignore_list:
-                        remove_list.append(node) 
+                        remove_list.append(node)
 
                 temp2 = temp
                 for node in remove_list:
                     temp2.remove(node)
 
         subnetwork = self.multiplex.subnetwork(input_list=temp2)
-        labels = temp2
-        network_colors, graph = subnetwork.get_layers(style="hairball")
+        _labels = temp2
+        _network_colors, graph = subnetwork.get_layers(style="hairball")
 
         test_colors = []
         for node in graph.nodes():
@@ -149,13 +152,16 @@ class Network(object):
             elif node[1] == "Electricity":
                 test_colors.append("C1")
 
-        test_colors = [("C3" if node[1]=="Material" else ("C0" if node[1] =="Steam" else ("C1" if node[1] == "Electricity" else "black"))) for node in graph.nodes]
+        test_colors = [("C3" if node[1]=="Material" else ("C0" if node[1] =="Steam" else \
+            ("C1" if node[1] == "Electricity" else "black"))) for node in graph.nodes]
         test_colors[0] = "C1"
         test_colors[1] = "C0"
 
         if draw is True:
-            hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=draw, color_list= test_colors,scale_by_size=False, legend=True)
+            hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=draw,\
+                           color_list= test_colors,scale_by_size=False, legend=True)
             plt.savefig("network.pdf",dpi=600)
             plt.show()
         else:
-            return hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=draw, color_list= test_colors,scale_by_size=False, legend=True)
+            return hairball_plot(graph, edge_width=0.5,alpha_channel=1,node_size=5 ,draw=draw,\
+                                  color_list= test_colors,scale_by_size=False, legend=True)
