@@ -1599,67 +1599,7 @@ class Performance(object):
             work_book.save("scatter_steam_data.xlsx")
 
 
-    def scatter_co2(self, ignore_list="", height=1000, width=1000, font_size=10):
-        """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
-
-        co2_emission = {}
-        co2_intensity = {}
-
-        for node in self.process_nodes.keys():
-            if "U" in node:
-                continue
-            else:
-                process_carbon = 0
-                for link in self.multiplex[node,'Material']:
-                    if link[0] == node:
-                        continue
-                    if "U" in link[0]:
-                        # Ignore the carbon in streams send to utility units that is used
-                        # as energy source
-                        continue
-                    if link[0] in self.process_nodes.keys():
-                        for stream in self.multiplex[node,'Material'][link].values():
-                            process_carbon += stream['carbon_flow_rate']
-                    if link[0] == 'PROD':
-                        for stream in self.multiplex[node,'Material'][link].values():
-                            process_carbon += stream['carbon_flow_rate']
-
-                emission = self.co2_process(node)
-                if emission >= 0.1:
-                    co2_emission[node] = emission
-                try:
-                    if process_carbon >= 0.1:
-                        co2_intensity[node] = emission/process_carbon
-                except ZeroDivisionError:
-                    pass
-
-        # Remove processes that are not in both the steam consumption and steam intensity lists
-        diff = set(co2_intensity) - set(co2_emission)
-        for x in diff:
-            co2_intensity.pop(x)
-
-        diff = set(co2_emission) - set(co2_intensity)
-        for x in diff:
-            co2_emission.pop(x)
-
-        for process in ignore_list:
-            co2_emission.pop(process)
-            co2_intensity.pop(process)
-        # x and y given as array_like objects
-        text = [x for x in co2_emission]
-
-        fig = px.scatter(x=co2_emission,y=co2_intensity,text=text, log_y=False, log_x=True, \
-                        labels={'x':'CO2 emission<br>kton CO2/year', \
-                        'y':'CO2 intensity <br>[kton of CO2/(kton of carbon X year) ]'},\
-                        width=width, height=height)
-        fig.update_traces(textposition='top center', marker={'size':10,'color':'red'})
-        fig.update_layout(font_family="Time New Roman", font_size=font_size)
-        fig.show()
-        fig.write_image("scatter_co2.pdf")
-
-
-
-    def scatter_co2_2(self, ignore_list="", height=1000, width=1000, \
+    def scatter_co2(self, ignore_list="", height=1000, width=1000, \
                       font_size=10, print_excel=False):
 
         """Method for plotting the CO2 intensity over the CO2 emissions in a scatter plot"""
