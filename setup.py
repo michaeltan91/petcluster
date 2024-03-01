@@ -13,6 +13,7 @@ setup(name='petcluster',
           'numpy',
           'epynet',
           'plotly',
-          'py3plex'
+          'py3plex @ git+https://github.com/michaeltan91/py3plex@testing',
+          'aspenauto @ git+https://github.com/michaeltan91/aspenauto@a554828'
       ],
       zip_safe=False)
